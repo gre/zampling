@@ -1,8 +1,7 @@
 Zampling.Track = Backbone.Model.extend({
-  initialize: function () {
-    // this.chunks : Zampling.Chunk
+  initialize: function (opts) {
   },
-  remove: function (from, to) {
+  cut: function (from, to) {
     throw "Not Implemented";
   },
   insert: function (chunks, at) {
@@ -12,8 +11,12 @@ Zampling.Track = Backbone.Model.extend({
     throw "Not Implemented";
   }
 }, {
-  createFromArrayBuffer: function () {
-    throw "Not Implemented";
+  createFromArrayBuffer: function (arrayBuffer) {
+    // TODO cut in multiple chunks
+    var chunks = new Zampling.ChunkNode(new Zampling.Chunk(arrayBuffer), null);
+    return new Zampling.Track({
+      chunks: chunks
+    });
   }
 });
 
