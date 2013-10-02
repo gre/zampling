@@ -2,29 +2,44 @@
 
   var ctx = new (window.webkitAudioContext || window.AudioContext)();
 
-  var track = QaudioXHR(ctx, "musics/circus.mp3").then(function (audioBuffer) {
-    return Zampling.Track.createFromArrayBuffer(audioBuffer.getChannelData(0), ctx);
+  var player = new Zampling.Player();
+
+  var $tracks = $("#tracks");
+
+  player.tracks.on("add", function (track) {
+    console.log("new track ", track);
+    var trackView = new Zampling.TrackView({
+      model: track
+    });
+    trackView.$el.appendTo($tracks);
   });
 
-  var buffer = null
+  QaudioXHR(ctx, "musics/circus.mp3")
+    .then(function (audioBuffer) {
+      return Zampling.Track.createFromArrayBuffer(audioBuffer.getChannelData(0), ctx);
+    })
+    .then(function (track) {
+      player.tracks.add(track);
+    });
+
+    var buffer;
 
   $("input[type='file']").change(function() {
     QaudioFileInput(ctx, this).then(function(buf) {
-      buffer = buf
-      $("div#controls").show()
+      buffer = buf;
       return Zampling.Track.createFromArrayBuffer(buf.getChannelData(0), ctx)
-    }).then(function(t) {
-      T = t
     })
+    .then(function (track) {
+      player.tracks.add(track);
+    });
   })
 
-  var player = new Zampling.Player()
-
+  $("div#controls").show()
   $("button#play").click(function() {
-    player.play(T)
+    player.play();
   })
   $("button#stop").click(function() {
-    player.stop()
+    player.stop();
   })
 
   $("button#export").click(function() {
@@ -41,7 +56,5 @@
     $(hf).appendTo("#wrapper")
   })
 
-  track.then(function(t){
-    T = t;
-  }).done();
+  P = player;
 }());

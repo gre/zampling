@@ -16,9 +16,9 @@ Zampling.ChunkNode.prototype.clone = function() {
   return new Zampling.ChunkNode(this.chunk, this.next)
 }
 
-Zampling.ChunkNode.prototype.forEach = function(f) {
-  f(this)
-  if(this.next) this.next.forEach(f)
+Zampling.ChunkNode.prototype.forEach = function(f, ctx) {
+  f.call(ctx, this);
+  if(this.next) this.next.forEach(f, ctx);
 }
 
 Zampling.ChunkNode.prototype.take = function(n) {

@@ -7,26 +7,24 @@ Zampling.Player = Backbone.Model.extend({
     this.destination = gain
     this.destination.connect(this.ctx.destination)
 
-    this.sources = []
+    this.tracks = new Zampling.Tracks();
+    this.sources = [];
   },
-  play: function(T) {
-    var self = this
-
-    var when = 0
-    var chunks = T.attributes.chunks
-    // chunks = chunks.reverse()
-
-    chunks.forEach(function(node) {
-      var source = self.ctx.createBufferSource()
-      source.buffer = node.chunk.audioBuffer
-      source.connect(self.destination)
-      source.start(self.ctx.currentTime + (when || 0), 0)
-      when += node.chunk.audioBuffer.duration
-      self.sources.push(source)
-    })
+  play: function () {
+    this.tracks.each(function (track) {
+      var when = 0;
+      track.get("chunks").forEach(function(node) {
+        var source = this.ctx.createBufferSource()
+        source.buffer = node.chunk.audioBuffer
+        source.connect(this.destination)
+        source.start(this.ctx.currentTime + (when || 0), 0)
+        when += node.chunk.audioBuffer.duration
+        this.sources.push(source)
+      }, this);
+    }, this);
   },
   stop: function() {
-    this.sources.forEach(function(s) { s.stop(0) })
-    this.sources = []
+    this.sources.forEach(function(s) { s.stop(0) });
+    this.sources = [];
   }
 });

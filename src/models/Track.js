@@ -1,5 +1,35 @@
+
 Zampling.Track = Backbone.Model.extend({
+  defaults: {
+    width: 600,
+    height: 100,
+    zoom: 0.01,
+    scrollX: 0
+  },
   initialize: function (opts) {
+  },
+  getStat: function (from, to) {
+    var min = Infinity, max = -Infinity;
+    var currentChunkI = 0;
+    var currentChunkNode = this.get("chunks");
+    var currentChunkSize = currentChunkNode.chunk.samples.length;
+    for (var i = from; i < to; ++i) {
+      while (currentChunkNode && i > currentChunkI + currentChunkSize) {
+        currentChunkI += currentChunkSize;
+        currentChunkNode = currentChunkNode.next;
+        if (currentChunkNode) {
+          currentChunkSize = currentChunkNode.chunk.samples.length;
+        }
+      }
+      if (!currentChunkNode) break;
+      var value = currentChunkNode.chunk.samples[i-currentChunkI];
+      if (value < min) min = value;
+      if (value > max) max = value;
+    }
+    return {
+      min: min,
+      max: max
+    };
   },
   cut: function (from, to) {
     var firstChunkNode, secondChunkNode;
@@ -79,4 +109,8 @@ Zampling.Track = Backbone.Model.extend({
       chunks: head
     });
   }
+});
+
+Zampling.Tracks = Backbone.Collection.extend({
+  model: Zampling.Track
 });
