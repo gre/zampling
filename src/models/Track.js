@@ -74,6 +74,29 @@ Zampling.Track = Backbone.Model.extend({
   },
   copy: function (from, to) { // returns chunks
     throw "Not Implemented";
+  },
+  length: function() {
+    var length = 0
+    var chunk = this.get('chunks');
+    while(chunk != undefined) {
+      length += chunk.chunk.samples.length
+      chunk = chunk.next
+    }
+    return length;
+  },
+  toFloat32Array: function() {
+    var lengthArray = this.length()
+    var chunk = this.get('chunks');
+    var result = new Float32Array(lengthArray);
+    var index = 0;
+
+    while(chunk != undefined) {
+      for (var i=0; i < chunk.chunk.samples.length; i++) {
+        result[index++] = chunk.chunk.samples[i]
+      }
+      chunk = chunk.next
+    }
+    return result;
   }
 }, {
   DEFAULT_SAMPLES_SIZE: 44100,
