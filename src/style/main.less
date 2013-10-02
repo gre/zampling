@@ -5,9 +5,18 @@ body {
 #wrapper {
   margin: 0 auto;
   width: 800px;
+
+  input[type="file"] {
+    text-align: right;
+    opacity: 0;
+    z-index: 2;
+  }
 }
 
 #tracks {
+  padding-bottom: 5px;
+  margin-bottom: 5px;
+  border-bottom: 1px solid whitesmoke;
   position: relative;
   .play-cursor {
     z-index: 2;
