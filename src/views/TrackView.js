@@ -1,11 +1,31 @@
 Zampling.TrackView = Backbone.View.extend({
+  className: "track",
   initialize: function (opts) {
     this.canvas = document.createElement("canvas");
     this.ctx = this.canvas.getContext("2d");
-    this.$el.append(this.canvas);
+    this.$cursor = $('<div class="cursor" hidden></div>');
+    this.$selection = $('<div class="selection" hidden></div>');
     this.syncSize();
     this.model.listenTo(this, "change:width change:height", this.syncSize);
     this.render();
+
+    this.$el.append(this.canvas);
+    this.$el.append(this.$cursor);
+    this.$el.append(this.$selection);
+  },
+  events: {
+    "mousedown": "onMouseDown",
+    "mouseup": "onMouseUp",
+    "mousemove": "onMouseMove"
+  },
+  onMouseDown: function (e) {
+    console.log("start");
+  },
+  onMouseUp: function (e) {
+    console.log("stop");
+  },
+  onMouseMove: function (e) {
+    console.log("move");
   },
   syncSize: function () {
     var W = this.model.get("width");

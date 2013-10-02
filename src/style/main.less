@@ -8,3 +8,23 @@ body {
   margin: 0 auto;
   width: 800px;
 }
+
+.track {
+  position: relative;
+  .cursor {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 0;
+    border-left: 1px solid #000;
+  }
+  .selection {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 0;
+    background: rgba(0,0,0,0.5);
+    border-left: 1px solid #000;
+    border-right: 1px solid #000;
+  }
+}
