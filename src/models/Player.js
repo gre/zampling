@@ -7,18 +7,17 @@ Zampling.Player = Backbone.Model.extend({
     this.destination = gain
     this.destination.connect(this.ctx.destination)
   },
-  play: function(buffer, offset) {
+  play: function(buffer) {
     var source = this.ctx.createBufferSource()
     source.buffer = buffer
     source.connect(this.destination)
-    source.start(0, offset)
+    source.start(0, 0)
     this.source = source
   },
   stop: function() {
     this.source.stop(0)
-    return this.ctx.currentTime
   },
-  offset: function() {
-    return this.ctx.currentTime || 0
+  pause: function() {
+
   }
 });
