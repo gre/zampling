@@ -34,5 +34,6 @@
     "commit": "83fad5c8463935b941cfa2ddb35f2f41e398735c"
   },
   "_source": "git://github.com/jlukic/Semantic-UI.git",
-  "_target": "~0.3.0"
+  "_target": "~0.3.0",
+  "_originalSource": "git://github.com/jlukic/Semantic-UI.git"
 }
