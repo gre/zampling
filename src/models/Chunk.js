@@ -52,8 +52,9 @@ Zampling.ChunkNode.prototype.reverse = function() {
 
 Zampling.ChunkNode.prototype.splice = function(at, ctx) {
   var chunks = this.chunk.splice(at, ctx),
-      chunkNode2 = new Zampling.ChunkNode(chunks[1], this.next),
-      chunkNode1 = new Zampling.ChunkNode(chunks[0], chunkNode2);
+      chunkNode = new Zampling.ChunkNode(chunks[1], this.next),
+      this.chunk = chunks[0],
+      this.next = chunkNode;
 
-  return [chunkNode1, chunkNode2];
+  return [this, chunkNode];
 }
