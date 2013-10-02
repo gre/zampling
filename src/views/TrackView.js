@@ -86,8 +86,9 @@ Zampling.TrackView = Backbone.View.extend({
     var ctx = this.ctx;
     var W = ctx.canvas.width;
     var H = ctx.canvas.height;
+    var dpr = window.devicePixelRatio || 1;
     var zoom = this.model.get("zoom");
-    var samplesPerZoom = Math.floor(1 / zoom);
+    var samplesPerZoom = Math.floor(1 / (zoom*dpr));
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     ctx.fillStyle = "#6ECFF5";
     var from = 0;

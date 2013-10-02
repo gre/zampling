@@ -35,10 +35,11 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
     $playCursor.hide();
   });
   player.on("playing", function (t) {
-    var x = Math.round(t*player.get("zoom")*ctx.sampleRate);
+    var x = Math.round(t*ctx.sampleRate*player.get("zoom"));
     $playCursor.css("left", x+"px");
   });
 
+  /*
   QaudioXHR(ctx, "musics/circus.mp3")
     .then(function (audioBuffer) {
       return Zampling.Track.createFromArrayBuffer(audioBuffer.getChannelData(0), ctx);
@@ -46,6 +47,7 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
     .then(function (track) {
       player.tracks.add(track);
     });
+  */
 
     var buffer;
 
@@ -85,6 +87,22 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
       this.set("zoom", zooms[currentZoomIndex]);
     }
   });
+
+  var cutData;
+
+  player.on("button-cut", function () {
+    var track = player.get("currentTrack");
+    var start = track.getCursorStartTime();
+    var end = track.getCursorEndTime();
+    cutData = track.cut(Math.round(start*ctx.sampleRate), Math.round(end*ctx.sampleRate));
+  });
+
+  player.on("button-paste", function () {
+    var track = player.get("currentTrack");
+    var start = track.getCursorStartTime();
+    track.insert(cutData, Math.round(start*ctx.sampleRate));
+  });
+  
   
   player.on("button-play", function () {
     var track = player.get("currentTrack");
@@ -95,7 +113,6 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
       var mode = track.get("cursormode");
       var start = track.getCursorStartTime();
       var end = track.getCursorEndTime();
-      console.log(start, end);
       if (mode === "cursor") {
         player.play(start);
       }

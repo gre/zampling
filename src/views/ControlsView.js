@@ -9,6 +9,10 @@ Zampling.ControlsView = Backbone.View.extend({
     this.$zoomDiv = $('<div class="blue ui buttons" style="margin:10px"></div>');
     this.$zoomout = $('<div class="zoomout ui icon button"><i class="zoom out icon"></i></div>');
 
+    this.$opDiv = $('<div class="blue ui buttons" style="margin:10px"></div>');
+    this.$cut = $('<div class="cut ui icon button"><i class="cut icon"></i></div>');
+    this.$paste = $('<div class="paste ui icon button"><i class="paste icon"></i></div>');
+
     this.$div.append(this.$play);
     this.$div.append(this.$stop);
     this.$el.append(this.$div);
@@ -16,13 +20,18 @@ Zampling.ControlsView = Backbone.View.extend({
     this.$zoomDiv.append(this.$zoomin);
     this.$zoomDiv.append(this.$zoomout);
     this.$el.append(this.$zoomDiv);
+    this.$opDiv.append(this.$cut);
+    this.$opDiv.append(this.$paste);
+    this.$el.append(this.$opDiv);
   },
   events: {
     "click .play": "onPlay",
     "click .stop": "onStop",
     "click .download": "onDownload",
     "click .zoomin": "onZoomIn",
-    "click .zoomout": "onZoomOut"
+    "click .zoomout": "onZoomOut",
+    "click .cut": "onCut",
+    "click .paste": "onPaste"
   },
   onPlay: function () {
     this.model.trigger("button-play");
@@ -38,5 +47,12 @@ Zampling.ControlsView = Backbone.View.extend({
   },
   onZoomOut: function () {
     this.model.trigger("button-zoomout");
+  },
+  onCut: function () {
+    this.model.trigger("button-cut");
+  },
+  onPaste: function () {
+    this.model.trigger("button-paste");
   }
+  
 });

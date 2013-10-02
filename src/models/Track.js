@@ -9,7 +9,6 @@ Zampling.Track = Backbone.Model.extend({
   initialize: function (opts) {
   },
   getCursorStartTime: function () {
-    console.log(this.attributes);
     return this.get("cursorstartx") / (this.get("zoom") * this.get("ctx").sampleRate);
   },
   getCursorEndTime: function () {
@@ -79,18 +78,21 @@ Zampling.Track = Backbone.Model.extend({
   },
   // returns an array which is the split of chunkNode into two chunkNodes
   insert: function (chunkNodes, at) {
+    console.log(arguments);
     var currentChunkNode = this.get("chunks"),
         step = currentChunkNode.chunk.samples.length,
         i;
-    for(i=step;i<at;i=i+at) {
+    for(i=step; i<at; i=i+step) {
       currentChunkNode = currentChunkNode.next;
       step = currentChunkNode.chunk.samples.length;
     }
 
+    console.log(step, i, at);
     if( i != at ) currentChunkNode = currentChunkNode.split(step - (i-at), this.get("ctx"));
 
     var chunksLoop = chunkNodes;
 
+    console.log("loop");
     while(chunksLoop.next) {
       chunksLoop = chunksLoop.next;
     }
@@ -98,6 +100,7 @@ Zampling.Track = Backbone.Model.extend({
     chunksLoop.next = currentChunkNode.next;
     currentChunkNode.next = chunkNodes;
 
+    console.log("ok");
     this.trigger("change:chunks", this, this.get("chunks"));
   },
   copy: function (from, to) { // returns chunks
