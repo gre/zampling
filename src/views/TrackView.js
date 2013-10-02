@@ -58,7 +58,6 @@ Zampling.TrackView = Backbone.View.extend({
   syncCursor: function () {
     var startx = this.model.get("cursorstartx");
     var endx = this.model.get("cursorendx");
-    console.log(startx, endx);
     if (Math.abs(startx-endx) < this.MIN_DELTA) {
       this.model.set("cursormode", "cursor");
       this.$cursor.css({

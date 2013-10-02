@@ -14,13 +14,29 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
     el: $('#controls')
   });
 
-
   player.tracks.on("add", function (track) {
-    console.log("new track ", track);
     var trackView = new Zampling.TrackView({
       model: track
     });
     trackView.$el.appendTo($tracks);
+    track.on("change:cursormode", function () {
+      player.set("currentTrack", track);
+    });
+  });
+
+  var $playCursor = $('<div class="play-cursor" />');
+  $playCursor.hide();
+  $tracks.append($playCursor);
+
+  player.on("play", function () {
+    $playCursor.show();
+  });
+  player.on("stop", function () {
+    $playCursor.hide();
+  });
+  player.on("playing", function (t) {
+    var x = Math.round(t*player.get("zoom")*ctx.sampleRate);
+    $playCursor.css("left", x+"px");
   });
 
   QaudioXHR(ctx, "musics/circus.mp3")
@@ -71,7 +87,22 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
   });
   
   player.on("button-play", function () {
-    player.play();
+    var track = player.get("currentTrack");
+    if (!track) {
+      player.play();
+    }
+    else {
+      var mode = track.get("cursormode");
+      var start = track.getCursorStartTime();
+      var end = track.getCursorEndTime();
+      console.log(start, end);
+      if (mode === "cursor") {
+        player.play(start);
+      }
+      else {
+        player.play(start, end);
+      }
+    }
   });
 
   player.on("button-stop", function () {

@@ -8,6 +8,13 @@ Zampling.Track = Backbone.Model.extend({
   },
   initialize: function (opts) {
   },
+  getCursorStartTime: function () {
+    console.log(this.attributes);
+    return this.get("cursorstartx") / (this.get("zoom") * this.get("ctx").sampleRate);
+  },
+  getCursorEndTime: function () {
+    return this.get("cursorendx") / (this.get("zoom") * this.get("ctx").sampleRate);
+  },
   getStat: function (from, to) {
     var min = Infinity, max = -Infinity;
     var currentChunkI = 0;

@@ -7,6 +7,17 @@ body {
   width: 800px;
 }
 
+#tracks {
+  position: relative;
+  .play-cursor {
+    z-index: 2;
+    position: absolute;
+    top: 0;
+    border-left: 1px solid #000;
+    height: 100%;
+  }
+}
+
 .track {
   position: relative;
   .cursor {
