@@ -19,4 +19,3 @@ Zampling.Track = Backbone.Model.extend({
     });
   }
 });
-

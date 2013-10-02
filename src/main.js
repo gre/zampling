@@ -7,4 +7,10 @@
   track.then(function(t){
     T = t;
   });
+
+  $("input[type='file']").change(function() {
+    QaudioFileInput(ctx, this).then(function(buf) {
+      Zampling.Track.createFromArrayBuffer(buf)
+    })
+  })
 }());
