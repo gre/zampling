@@ -92,7 +92,6 @@ Zampling.Track = Backbone.Model.extend({
 
     var chunksLoop = chunkNodes;
 
-    console.log("loop");
     while(chunksLoop.next) {
       chunksLoop = chunksLoop.next;
     }
@@ -100,7 +99,6 @@ Zampling.Track = Backbone.Model.extend({
     chunksLoop.next = currentChunkNode.next;
     currentChunkNode.next = chunkNodes;
 
-    console.log("ok");
     this.trigger("change:chunks", this, this.get("chunks"));
   },
   copy: function (from, to) { // returns chunks

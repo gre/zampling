@@ -7,7 +7,8 @@ Zampling.TrackView = Backbone.View.extend({
     this.$cursor = $('<div class="cursor"></div>');
     this.$selection = $('<div class="selection"></div>');
     this.listenTo(this.model, "change:width change:height", this.syncSize);
-    this.listenTo(this.model, "change:zoom change:samples", this.render);
+    this.listenTo(this.model, "change:zoom", this.render);
+    this.listenTo(this.model, "change:chunks", this.render);
     this.listenTo(this.model, "change:cursorstartx change:cursorendx", this.syncCursor);
     this.listenTo(this.model, "change:cursormode", this.syncCursorMode);
 

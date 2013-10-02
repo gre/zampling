@@ -147,14 +147,15 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
     hf.dispatchEvent(click);
   })
 
+  var eventuallyMediaStream = (function(d) {
+    navigator.getUserMedia({ audio: true }, d.resolve, d.reject);
+    return d.promise;
+  } (Q.defer()));
+
   var mediaStream = null;
   var mic = null;
   var record = null;
   $("button#record").click(function() {
-    var eventuallyMediaStream = (function(d) {
-      navigator.getUserMedia({ audio: true }, d.resolve, d.reject);
-      return d.promise;
-    } (Q.defer()));
 
     eventuallyMediaStream.then(function(stream) {
       mediaStream = stream
