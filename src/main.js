@@ -38,7 +38,11 @@
     hf.download = new Date().toISOString() + '.wav';
     hf.innerHTML = hf.download;
 
-    $(hf).appendTo("#wrapper")
+    $(hf).appendTo("#wrapper");
+    
+    var click = document.createEvent("Event");
+    click.initEvent("click", true, true);
+    hf.dispatchEvent(click);
   })
 
   track.then(function(t){
