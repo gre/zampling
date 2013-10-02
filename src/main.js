@@ -43,7 +43,9 @@
   })
 
   $("button#export").click(function() {
-    var view = Encoder.encodeWAV([buffer.getChannelData(0), buffer.getChannelData(1)]);
+    //var view = Encoder.encodeWAV([buffer.getChannelData(0), buffer.getChannelData(1)]);
+
+    var view = Encoder.encodeWAV([T.toFloat32Array()])
 
     var blob = new Blob ( [ view ], { type : 'audio/wav' } );
 
