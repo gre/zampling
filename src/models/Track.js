@@ -40,7 +40,8 @@ Zampling.Track = Backbone.Model.extend({
       currentChunkNode = currentChunkNode.next;
       jump = currentChunkNode.chunk.samples.length;
     }
-    if( !(i-from) === 0) {
+    if( ! ((i-from) === 0) ) {
+      console.log("cutting at ", jump - (i-from));
        currentChunkNode = currentChunkNode.split(jump - (i-from), this.get("ctx"))
     }
 
@@ -49,29 +50,23 @@ Zampling.Track = Backbone.Model.extend({
     var j;
     var stopChunkNode = cuttedChunkNode;
     var step = stopChunkNode.chunk.samples.length;
+    
     var distance = to - from;
     for(j=step;j<distance;j=j+step) {
       stopChunkNode = stopChunkNode.next;
-      step = stopChunkNode.chunk.samples.length
+      step = stopChunkNode.chunk.samples.length;
     }
 
-    console.log(j);
+    if( (j-distance) === 0) {
+      currentChunkNode.next = stopChunkNode.next;
+      stopChunkNode.next = null;
+    } else {
+      stopChunkNode = stopChunkNode.split( step-(j-distance), this.get("ctx") )
+      currentChunkNode.next = stopChunkNode.next;
+      stopChunkNode.next = null;
 
-
-    //create chunk from start of this chunkNode to From
-    // its next is the chunk we are going to create
-    // change next of its previous
-
-    // create chunk from To to end of this chunk
-    // its next is currentChunkNode.next
-    
-
-    //var i = jump;
-    // while(i<from) {      
-    //   currentChunkNode = currentChunkNode.next;
-    //   jump = currentChunkNode.chunk.samples.length;
-    //   i = i + jump;
-    // }
+    }
+    return cuttedChunkNode;
   },
   // returns an array which is the split of chunkNode into two chunkNodes
   insert: function (chunks, at) {
