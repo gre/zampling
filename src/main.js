@@ -3,11 +3,17 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
 
 (function () {
 
+  var $tracks = $("#tracks");
+
   var ctx = new (window.webkitAudioContext || window.AudioContext)();
 
   var player = new Zampling.Player();
 
-  var $tracks = $("#tracks");
+  var controlView = new Zampling.ControlsView({
+    model: player,
+    el: $('#controls')
+  });
+
 
   player.tracks.on("add", function (track) {
     console.log("new track ", track);
@@ -35,20 +41,22 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
     .then(function (track) {
       player.tracks.add(track);
     });
-  })
+  });
 
-  $("div#controls").show()
-  $("button#play").click(function() {
+  
+  player.on("button-play", function () {
     player.play();
-  })
-  $("button#stop").click(function() {
-    player.stop();
-  })
+  });
 
-  $("button#export").click(function() {
+  player.on("button-stop", function () {
+    player.stop();
+  });
+
+  player.on("button-download", function () {
     //var view = Encoder.encodeWAV([buffer.getChannelData(0), buffer.getChannelData(1)]);
 
-    var view = Encoder.encodeWAV([T.toFloat32Array()])
+    // TODO handle multiple tracks
+    var view = Encoder.encodeWAV([player.tracks.head().toFloat32Array()])
 
     var blob = new Blob ( [ view ], { type : 'audio/wav' } );
 
