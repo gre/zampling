@@ -47,7 +47,6 @@ Zampling.Track = Backbone.Model.extend({
       jump = currentChunkNode.chunk.samples.length;
     }
     if( ! ((i-from) === 0) ) {
-      console.log("cutting at ", jump - (i-from));
        currentChunkNode = currentChunkNode.split(jump - (i-from), this.get("ctx"))
     }
 
@@ -78,7 +77,6 @@ Zampling.Track = Backbone.Model.extend({
   },
   // returns an array which is the split of chunkNode into two chunkNodes
   insert: function (chunkNodes, at) {
-    console.log(arguments);
     var currentChunkNode = this.get("chunks"),
         step = currentChunkNode.chunk.samples.length,
         i;
@@ -87,7 +85,6 @@ Zampling.Track = Backbone.Model.extend({
       step = currentChunkNode.chunk.samples.length;
     }
 
-    console.log(step, i, at);
     if( i != at ) currentChunkNode = currentChunkNode.split(step - (i-at), this.get("ctx"));
 
     var chunksLoop = chunkNodes;

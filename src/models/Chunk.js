@@ -3,6 +3,11 @@ Zampling.Chunk = function(samples, audioBuffer) {
   this.audioBuffer = audioBuffer;
 }
 
+Zampling.Chunk.prototype.clone = function (ctx) {
+  var buffer = ctx.createBuffer(1, this.samples.length, ctx.sampleRate);
+  return new Zampling.Chunk(buffer.getChannelData(0), buffer);
+}
+
 Zampling.Chunk.prototype.split = function(at, ctx) {
   var audioBuffer1 = ctx.createBuffer(1, at, ctx.sampleRate),
       audioBuffer2 = ctx.createBuffer(1, (this.samples.length - at), ctx.sampleRate),

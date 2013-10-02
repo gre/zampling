@@ -27,10 +27,10 @@ Zampling.Player = Backbone.Model.extend({
     if (!stopAtPosition) stopAtPosition = Infinity;
     if (this.get("playing")) return;
     this.set("playing", true);
-    this.set("playStartAt", currentTime);
     this.set("playPosition", position);
-    this.trigger("playing", this.ctx.currentTime-this.get("playStartAt")+this.get("playPosition"));
     var currentTime = this.ctx.currentTime;
+    this.set("playStartAt", currentTime);
+    this.trigger("playing", this.ctx.currentTime-this.get("playStartAt")+this.get("playPosition"));
     var maxDuration = -Infinity;
     this.tracks.each(function (track) {
       var when = -position;

@@ -39,6 +39,7 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
     $playCursor.css("left", x+"px");
   });
 
+  /*
   QaudioXHR(ctx, "musics/circus.mp3")
     .then(function (audioBuffer) {
       return Zampling.Track.createFromArrayBuffer(audioBuffer.getChannelData(0), ctx);
@@ -46,6 +47,7 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
     .then(function (track) {
       player.tracks.add(track);
     });
+    */
 
     var buffer;
 
@@ -124,7 +126,6 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
     }
   });
   
-  
   player.on("button-play", function () {
     var track = player.get("currentTrack");
     if (!track) {
@@ -161,7 +162,7 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
     hf.download = new Date().toISOString() + '.wav';
     hf.innerHTML = hf.download;
 
-    $(hf).appendTo("#wrapper");
+    //$(hf).appendTo("#wrapper");
 
     var click = document.createEvent("Event");
     click.initEvent("click", true, true);
@@ -185,7 +186,7 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
       compressor.connect(ctx.destination)
 
       var gain = ctx.createGain()
-      gain.gain.value = 10
+      gain.gain.value = 2
       gain.connect(compressor)
 
       // tracks management
@@ -214,9 +215,12 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
     var bufferSize = 2048;
     var processor = ctx.createJavaScriptNode(bufferSize, 1, 1);
     processor.onaudioprocess = function(e) {
+      var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      var array = new Float32Array(e.inputBuffer.getChannelData(0));
+      buffer.getChannelData(0).set(array);
       processingHandler({
-        buffer: e.inputBuffer,
-        array: new Float32Array(e.inputBuffer.getChannelData(0))
+        buffer: buffer,
+        array: array
       });
     }
 
