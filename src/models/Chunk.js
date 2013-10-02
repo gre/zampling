@@ -3,7 +3,7 @@ Zampling.Chunk = function(samples, audioBuffer) {
   this.audioBuffer = audioBuffer;
 }
 
-Zampling.Chunk.prototype.splice = function(at, ctx) {
+Zampling.Chunk.prototype.split = function(at, ctx) {
   var audioBuffer1 = ctx.createBuffer(1, at, ctx.sampleRate),
       audioBuffer2 = ctx.createBuffer(1, (this.samples.length - at), ctx.sampleRate),
       floatArray1 = audioBuffer1.getChannelData(0),
@@ -50,11 +50,11 @@ Zampling.ChunkNode.prototype.reverse = function() {
   return reversed
 }
 
-Zampling.ChunkNode.prototype.splice = function(at, ctx) {
-  var chunks = this.chunk.splice(at, ctx),
-      chunkNode = new Zampling.ChunkNode(chunks[1], this.next),
-      this.chunk = chunks[0],
-      this.next = chunkNode;
+Zampling.ChunkNode.prototype.split = function(at, ctx) {
+  var chunks = this.chunk.split(at, ctx),
+      chunkNode = new Zampling.ChunkNode(chunks[1], this.next);
+  this.chunk = chunks[0],
+  this.next = chunkNode;
 
-  return [this, chunkNode];
+  return this;
 }
