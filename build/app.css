@@ -1,0 +1,5 @@
+body{font-family:'Lato',sans-serif}
+#wrapper{margin:0 auto;width:800px}
+#tracks{padding-bottom:5px;margin-bottom:5px;border-bottom:1px solid whitesmoke;position:relative}#tracks .play-cursor{z-index:2;position:absolute;top:0;border-left:1px solid #D95C5C;height:100%}
+.track{position:relative}.track .cursor{position:absolute;top:0;height:100%;width:0;border-left:1px solid #D95C5C}
+.track .selection{position:absolute;top:0;height:100%;width:0;background:#564F8A;opacity:0.2;border-left:1px solid black;border-right:1px solid black}
