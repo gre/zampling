@@ -66,6 +66,8 @@ Zampling.Track = Backbone.Model.extend({
       stopChunkNode.next = null;
 
     }
+    this.trigger("change:chunks", this, this.get("chunks"));
+
     return cuttedChunkNode;
   },
   // returns an array which is the split of chunkNode into two chunkNodes
