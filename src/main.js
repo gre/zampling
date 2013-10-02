@@ -84,13 +84,20 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
       gain.gain.value = 10
       gain.connect(compressor)
 
+      // tracks management
+      var track = null;
+
+      // get array buffer from stream
       record = recorder(function(e) {
-        var sum = 0;
-        for(var i = 0; i < e.buffer.length; i++) {
-          sum = sum + e.buffer[i];
+        if(!track) {
+          track = Zampling.Track.createFromArrayBuffer(e.array, ctx);
+          player.tracks.add(track);
         }
-        console.log("processing " + (sum / e.buffer.length));
-      })
+        else {
+          var node = new Zampling.ChunkNode(new Zampling.Chunk(e.array, e.buffer));
+          track.insert(node, track.length());
+        }
+      });
       record.connect(gain);
 
       mic = ctx.createMediaStreamSource(stream)
@@ -103,7 +110,10 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
     var bufferSize = 2048;
     var processor = ctx.createJavaScriptNode(bufferSize, 1, 1);
     processor.onaudioprocess = function(e) {
-      processingHandler({ buffer: new Float32Array(e.inputBuffer.getChannelData(0)) });
+      processingHandler({
+        buffer: e.inputBuffer,
+        array: new Float32Array(e.inputBuffer.getChannelData(0))
+      });
     }
 
     return processor;
@@ -116,6 +126,4 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
     record.disconnect(0);
     $(this).hide()
   })
-
-  P = player;
 }());

@@ -50,7 +50,7 @@ Zampling.Track = Backbone.Model.extend({
     var j;
     var stopChunkNode = cuttedChunkNode;
     var step = stopChunkNode.chunk.samples.length;
-    
+
     var distance = to - from;
     for(j=step;j<distance;j=j+step) {
       stopChunkNode = stopChunkNode.next;
@@ -82,14 +82,14 @@ Zampling.Track = Backbone.Model.extend({
 
     if( i != at ) currentChunkNode = currentChunkNode.split(step - (i-at), this.get("ctx"));
 
-    var chunksLoop = chunks;
+    var chunksLoop = chunkNodes;
 
     while(chunksLoop.next) {
       chunksLoop = chunksLoop.next;
     }
 
     chunksLoop.next = currentChunkNode.next;
-    currentChunkNode.next = chunks;
+    currentChunkNode.next = chunkNodes;
 
     this.trigger("change:chunks", this, this.get("chunks"));
   },
@@ -127,7 +127,7 @@ Zampling.Track = Backbone.Model.extend({
     if (!samplesSize) samplesSize = Zampling.Track.DEFAULT_SAMPLES_SIZE
 
     var length = float32ArrayBuffer.length;
-    
+
     var chunks = [];
     for (var i=0; i<length; i += samplesSize) {
       var size = Math.min(length-i, samplesSize);
@@ -141,7 +141,7 @@ Zampling.Track = Backbone.Model.extend({
     var head = _.reduceRight(chunks, function (nextChunk, chunk) {
       return new Zampling.ChunkNode(chunk, nextChunk);
     }, null);
-    
+
     return new Zampling.Track({
       chunks: head,
       ctx: ctx
