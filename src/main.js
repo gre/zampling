@@ -39,7 +39,6 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
     $playCursor.css("left", x+"px");
   });
 
-  /*
   QaudioXHR(ctx, "musics/circus.mp3")
     .then(function (audioBuffer) {
       return Zampling.Track.createFromArrayBuffer(audioBuffer.getChannelData(0), ctx);
@@ -47,7 +46,6 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
     .then(function (track) {
       player.tracks.add(track);
     });
-  */
 
     var buffer;
 
@@ -70,8 +68,27 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
       track.set("zoom", player.get("zoom"));
   });
 
-  var zooms = [0.0001, 0.001, 0.005, 0.01, 0.05, 0.5];
-  var currentZoomIndex = 0;
+
+
+  var zoom;
+  var zoomMult = 1.5;
+  player.set("zoom", zoom = 0.001);
+  player.on("button-zoomin", function () {
+    var z = zoom * zoomMult;
+    if (z < 1) {
+      this.set("zoom", zoom = z);
+    }
+  });
+
+  player.on("button-zoomout", function () {
+    var z = zoom / zoomMult;
+    this.set("zoom", zoom = z);
+  });
+
+
+  /*
+  var zooms = [0.0001, 0.001, 0.005, 0.01, 0.05, 0.5].sort();
+  var currentZoomIndex = 1;
   player.set("zoom", zooms[currentZoomIndex]);
 
   player.on("button-zoomin", function () {
@@ -87,6 +104,7 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
       this.set("zoom", zooms[currentZoomIndex]);
     }
   });
+  */
 
   var cutData;
 
@@ -98,9 +116,12 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
   });
 
   player.on("button-paste", function () {
-    var track = player.get("currentTrack");
-    var start = track.getCursorStartTime();
-    track.insert(cutData, Math.round(start*ctx.sampleRate));
+    if (cutData) {
+      var track = player.get("currentTrack");
+      var start = track.getCursorStartTime();
+      track.insert(cutData, Math.round(start*ctx.sampleRate));
+      cutData = null;
+    }
   });
   
   

@@ -20,15 +20,17 @@ Zampling.Player = Backbone.Model.extend({
     this.set("playing", false);
   },
   _triggerPlaying: function () {
-    this.trigger("playing", this.ctx.currentTime-this.get("playStartAt"));
+    this.trigger("playing", this.ctx.currentTime-this.get("playStartAt")+this.get("playPosition"));
   },
   play: function (position, stopAtPosition) {
     if (!position) position = 0;
     if (!stopAtPosition) stopAtPosition = Infinity;
     if (this.get("playing")) return;
     this.set("playing", true);
-    var currentTime = this.ctx.currentTime;
     this.set("playStartAt", currentTime);
+    this.set("playPosition", position);
+    this.trigger("playing", this.ctx.currentTime-this.get("playStartAt")+this.get("playPosition"));
+    var currentTime = this.ctx.currentTime;
     var maxDuration = -Infinity;
     this.tracks.each(function (track) {
       var when = -position;
@@ -68,10 +70,10 @@ Zampling.Player = Backbone.Model.extend({
   },
   stop: function () {
     if (!this.get("playing")) return;
-    this.set("playing", false);
     this.sources.forEach(function(s) { s.stop(0) });
     this.sources = [];
     clearInterval(this.triggerPlaying);
+    this.set("playing", false);
     this.trigger("stop");
   }
 });
