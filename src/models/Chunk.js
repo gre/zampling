@@ -1,15 +1,8 @@
-Zampling.Chunk = Backbone.Model.extend({
-  initialize: function () {
+Zampling.Chunk = function(samples) {
+  this.samples = samples;
+}
 
-  },
-  getNext: function () {
-    return this.next;
-  },
-  setNext: function (chunk) {
-    this.next = chunk;
-  }
-}, {
-  getChunksFromArrayBuffer: function (buffer) {
-    throw "Not Implemented";
-  }
-});
+Zampling.ChunkNode = function(chunk, nextChunk)  {
+  this.chunk = chunk;
+  this.next = nextChunk;
+}
