@@ -32,21 +32,30 @@ Zampling.Track = Backbone.Model.extend({
     };
   },
   cut: function (from, to) {
-    var firstChunkNode, secondChunkNode;
-    var currentChunkNode = this.get("chunks");
-    var jump = currentChunkNode.chunk.samples.length;
-    var i;
+    var currentChunkNode = this.get("chunks"),
+        jump = currentChunkNode.chunk.samples.length,
+        i;
+
     for(i=jump; i<from; i=i+jump) {
       currentChunkNode = currentChunkNode.next;
       jump = currentChunkNode.chunk.samples.length;
     }
-    if( (i-from) === 0) {
-       firstNode = currentChunkNode;
-    } else {
-      firstNode = currentChunkNode;
-      firstNo
-      console.log("You should move by", jump - (i-fconsolrom) );
+    if( !(i-from) === 0) {
+       currentChunkNode = currentChunkNode.split(jump - (i-from), this.get("ctx"))
     }
+
+    var cuttedChunkNode = currentChunkNode.next;
+
+    var j;
+    var stopChunkNode = cuttedChunkNode;
+    var step = stopChunkNode.chunk.samples.length;
+    var distance = to - from;
+    for(j=step;j<distance;j=j+step) {
+      stopChunkNode = stopChunkNode.next;
+      step = stopChunkNode.chunk.samples.length
+    }
+
+    console.log(j);
 
 
     //create chunk from start of this chunkNode to From
@@ -65,17 +74,6 @@ Zampling.Track = Backbone.Model.extend({
     // }
   },
   // returns an array which is the split of chunkNode into two chunkNodes
-  split: function(chunkNode, at) {
-    // if(chunkNode.chunk.samples.length > at) {
-    //   var firstChunk = new Zampling.Chunk(chunkNode.samples.subarray(0, at),  ).set(float32ArrayBuffer.subarray(i, i+size)
-    //   var secondChunk = 
-    //   var secondChunkNode = new Zampling.ChunkNode(secondChunk, chunkNode.next);
-    //   var firstChunkNode = new Zampling.ChunkNode(firstChunk, secondChunkNode);
-    //   splited = [, new Zampling.ChunkNode(secondChunk, chunkNode.next)]
-    // } else {
-    //   throw "Cannot split at given position"
-    // }
-  },
   insert: function (chunks, at) {
     throw "Not Implemented";
   },
@@ -106,7 +104,8 @@ Zampling.Track = Backbone.Model.extend({
     }, null);
     
     return new Zampling.Track({
-      chunks: head
+      chunks: head,
+      ctx: ctx
     });
   }
 });
