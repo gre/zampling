@@ -65,10 +65,6 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
     hf.dispatchEvent(click);
   })
 
-  track.then(function(t){
-    T = t;
-  }).done();
-
   var mediaStream = null;
   var mic = null;
   var record = null;
