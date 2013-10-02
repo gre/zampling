@@ -43,6 +43,32 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
     });
   });
 
+  player.on("change:zoom", function (m, zoom) {
+    player.tracks.each(function (track) {
+      track.set("zoom", zoom);
+    });
+  });
+  player.tracks.on("add", function (track) {
+      track.set("zoom", player.get("zoom"));
+  });
+
+  var zooms = [0.0001, 0.001, 0.005, 0.01, 0.05, 0.5];
+  var currentZoomIndex = 0;
+  player.set("zoom", zooms[currentZoomIndex]);
+
+  player.on("button-zoomin", function () {
+    if (currentZoomIndex < zooms.length-1) {
+      currentZoomIndex ++;
+      this.set("zoom", zooms[currentZoomIndex]);
+    }
+  });
+
+  player.on("button-zoomout", function () {
+    if (currentZoomIndex > 0) {
+      currentZoomIndex --;
+      this.set("zoom", zooms[currentZoomIndex]);
+    }
+  });
   
   player.on("button-play", function () {
     player.play();
