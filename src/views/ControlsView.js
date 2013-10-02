@@ -1,16 +1,21 @@
 Zampling.ControlsView = Backbone.View.extend({
   initialize: function () {
-    this.$play = $('<button class="play">Play</button>');
-    this.$stop = $('<button class="stop">Stop</button>');
-    this.$export = $('<button class="download">Download</button>');
-    this.$zoomin = $('<button class="zoomin">+</button>');
-    this.$zoomout = $('<button class="zoomout">-</button>');
 
-    this.$el.append(this.$play);
-    this.$el.append(this.$stop);
+    this.$div = $('<div class="blue ui buttons" style="margin:10px"></div>');
+    this.$play = $('<div class="ui icon button play"><i class="play icon"></i></div>');
+    this.$stop = $('<div class="ui icon button stop"><i class="stop icon"></i></div>');
+    this.$export = $('<div class="ui right labeled icon button download green"><i class="right download disk icon"></i>Download</div>');
+    this.$zoomin = $('<div class="zoomin ui icon button"><i class="zoom in icon"></i></div>');
+    this.$zoomDiv = $('<div class="blue ui buttons" style="margin:10px"></div>');
+    this.$zoomout = $('<div class="zoomout ui icon button"><i class="zoom out icon"></i></div>');
+
+    this.$div.append(this.$play);
+    this.$div.append(this.$stop);
+    this.$el.append(this.$div);
     this.$el.append(this.$export);
-    this.$el.append(this.$zoomin);
-    this.$el.append(this.$zoomout);
+    this.$zoomDiv.append(this.$zoomin);
+    this.$zoomDiv.append(this.$zoomout);
+    this.$el.append(this.$zoomDiv);
   },
   events: {
     "click .play": "onPlay",
