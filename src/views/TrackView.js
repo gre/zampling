@@ -1,17 +1,21 @@
 Zampling.TrackView = Backbone.View.extend({
   className: "track",
   initialize: function (opts) {
+    this.MIN_DELTA = 8;
     this.canvas = document.createElement("canvas");
     this.ctx = this.canvas.getContext("2d");
-    this.$cursor = $('<div class="cursor" hidden></div>');
-    this.$selection = $('<div class="selection" hidden></div>');
-    this.syncSize();
-    this.model.listenTo(this, "change:width change:height", this.syncSize);
-    this.render();
+    this.$cursor = $('<div class="cursor"></div>');
+    this.$selection = $('<div class="selection"></div>');
+    this.listenTo(this.model, "change:width change:height", this.syncSize);
+    this.listenTo(this.model, "change:zoom change:samples", this.render);
+    this.listenTo(this.model, "change:cursorstartx change:cursorendx", this.syncCursor);
+    this.listenTo(this.model, "change:cursormode", this.syncCursorMode);
 
     this.$el.append(this.canvas);
     this.$el.append(this.$cursor);
     this.$el.append(this.$selection);
+
+    this.syncSize();
   },
   events: {
     "mousedown": "onMouseDown",
@@ -19,13 +23,55 @@ Zampling.TrackView = Backbone.View.extend({
     "mousemove": "onMouseMove"
   },
   onMouseDown: function (e) {
-    console.log("start");
+    e.preventDefault();
+    var x = e.clientX - this.canvas.getBoundingClientRect().left;
+    this.model.set({
+      "cursormode": "cursor",
+      "cursorstartx": x,
+      "cursorendx": null,
+      "moving": true
+    });
   },
   onMouseUp: function (e) {
-    console.log("stop");
+    var x = e.clientX - this.canvas.getBoundingClientRect().left;
+    this.model.set({
+      "cursorendx": x,
+      "moving": false
+    });
   },
   onMouseMove: function (e) {
-    console.log("move");
+    if (!this.model.get("moving")) return;
+    var x = e.clientX - this.canvas.getBoundingClientRect().left;
+    this.model.set("cursorendx", x);
+  },
+  syncCursorMode: function () {
+    var mode = this.model.get("cursormode");
+    if (mode == "cursor") {
+      this.$cursor.show();
+      this.$selection.hide();
+    }
+    else if (mode == "selection") {
+      this.$selection.show();
+      this.$cursor.hide();
+    }
+  },
+  syncCursor: function () {
+    var startx = this.model.get("cursorstartx");
+    var endx = this.model.get("cursorendx");
+    console.log(startx, endx);
+    if (Math.abs(startx-endx) < this.MIN_DELTA) {
+      this.model.set("cursormode", "cursor");
+      this.$cursor.css({
+        left: Math.round(startx)+"px"
+      });
+    }
+    else {
+      this.model.set("cursormode", "selection");
+      this.$selection.css({
+        left: Math.round(startx)+"px",
+        width: Math.round(endx-startx)+"px"
+      });
+    }
   },
   syncSize: function () {
     var W = this.model.get("width");
@@ -35,6 +81,7 @@ Zampling.TrackView = Backbone.View.extend({
     this.canvas.height = dpr * H;
     this.canvas.style.width = W+"px";
     this.canvas.style.height = H+"px";
+    this.render();
   },
   render: function () {
     var ctx = this.ctx;
