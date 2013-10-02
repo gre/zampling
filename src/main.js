@@ -155,11 +155,11 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
   var mediaStream = null;
   var mic = null;
   var record = null;
-  $("button#record").click(function() {
+  $("#record").click(function() {
 
     eventuallyMediaStream.then(function(stream) {
       mediaStream = stream
-      $("button#stopRecord").show()
+      $("#stopRecord").show()
       var compressor = ctx.createDynamicsCompressor();
       compressor.connect(ctx.destination)
 
@@ -202,7 +202,7 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
     return processor;
   }
 
-  $("button#stopRecord").hide().click(function() {
+  $("#stopRecord").hide().click(function() {
     mediaStream.stop();
     mediaStream = null;
     mic.disconnect(0);
