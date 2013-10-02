@@ -20,10 +20,13 @@ Zampling.Player = Backbone.Model.extend({
     this.trigger("playing", this.ctx.currentTime-this.get("playStartAt"));
   },
   play: function (position, stopAtPosition) {
+    if (!position) position = 0;
+    if (!stopAtPosition) stopAtPosition = Infinity;
     if (this.get("playing")) return;
     this.set("playing", true);
     var currentTime = this.ctx.currentTime;
     this.set("playStartAt", currentTime);
+    var maxDuration = -Infinity;
     this.tracks.each(function (track) {
       var when = -position;
       track.get("chunks").forEach(function(node) {
@@ -38,25 +41,31 @@ Zampling.Player = Backbone.Model.extend({
             var playoffset = Math.max(0, duration - when);
             var playduration = Math.min(duration, stopAtPosition - when);
             source.start(currentTime + start, playoffset, playduration);
+            maxDuration = Math.max(start + playduration, maxDuration);
             this.sources.push(source);
           }
         }
       }, this);
     }, this);
+    /*
     var playendPromise = Q.all(_.map(this.sources, function (s) {
       var d = Q.defer();
-      s.onended = d.resolve;
+      s.addEventListener("ended", d.resolve);
       return d.promise;
     }));
     playendPromise.then(function() {
       console.log("done");
     });
+    */
+    playendPromise = Q.delay(1000 * maxDuration); // FIXME
+
     playendPromise.then(_.bind(this.stop, this));
     setInterval(this.triggerPlaying, 100);
     this.trigger("play", playendPromise);
   },
   stop: function () {
     if (!this.get("playing")) return;
+    this.set("playing", false);
     this.sources.forEach(function(s) { s.stop(0) });
     this.sources = [];
     clearInterval(this.triggerPlaying);
