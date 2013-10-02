@@ -12,14 +12,16 @@
     QaudioFileInput(ctx, this).then(function(buf) {
       buffer = buf
       $("div#controls").show()
-      Zampling.Track.createFromArrayBuffer(buf.getChannelData(0), ctx)
+      return Zampling.Track.createFromArrayBuffer(buf.getChannelData(0), ctx)
+    }).then(function(t) {
+      T = t
     })
   })
 
   var player = new Zampling.Player()
 
   $("button#play").click(function() {
-    player.play(buffer)
+    player.play(T)
   })
   $("button#stop").click(function() {
     player.stop()
