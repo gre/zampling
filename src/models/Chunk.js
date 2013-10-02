@@ -3,7 +3,11 @@ Zampling.Chunk = function(samples, audioBuffer) {
   this.audioBuffer = audioBuffer;
 }
 
-Zampling.ChunkNode = function(chunk, nextChunkNode) {
+Zampling.Chunk.prototype.splice = function(start, end) {
+
+}
+
+Zampling.ChunkNode = function(chunk, nextChunkNode)  {
   this.chunk = chunk;
   this.next = nextChunkNode;
 }
