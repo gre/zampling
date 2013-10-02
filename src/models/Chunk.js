@@ -24,13 +24,19 @@ Zampling.ChunkNode.prototype.take = function(n) {
   return clone
 }
 
+Zampling.ChunkNode.prototype.last = function(node) {
+  if(this.next) this.next.last(node)
+  else this.next = node
+  return this
+}
+
 Zampling.ChunkNode.prototype.reverse = function() {
   var clone = this.clone()
   clone.next = null
-  var reversed = this
+  var reversed = clone
   if(this.next) {
     reversed = this.next.reverse()
-    reversed.next = clone
+    reversed.last(clone)
   }
   return reversed
 }
