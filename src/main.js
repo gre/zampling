@@ -27,6 +27,20 @@
     player.stop()
   })
 
+  $("button#export").click(function() {
+    var view = Encoder.encodeWAV([buffer.getChannelData(0), buffer.getChannelData(1)]);
+
+    var blob = new Blob ( [ view ], { type : 'audio/wav' } );
+
+    var url = URL.createObjectURL(blob);
+    var hf = document.createElement('a');
+    hf.href = url;
+    hf.download = new Date().toISOString() + '.wav';
+    hf.innerHTML = hf.download;
+
+    $(hf).appendTo("#wrapper")
+  })
+
   track.then(function(t){
     T = t;
   }).done();
