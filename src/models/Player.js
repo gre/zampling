@@ -4,11 +4,14 @@ Zampling.Player = Backbone.Model.extend({
   },
   initialize: function() {
     this.ctx = new (window.webkitAudioContext || window.AudioContext)();
+
+    var compressor = this.ctx.createDynamicsCompressor();
+    compressor.connect(this.ctx.destination)
+    this.destination = compressor
+
     var gain = this.ctx.createGain()
     gain.gain.value = 1
-
-    this.destination = gain
-    this.destination.connect(this.ctx.destination)
+    gain.connect(compressor)
 
     this.tracks = new Zampling.Tracks();
     this.sources = [];
