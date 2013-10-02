@@ -1,11 +1,14 @@
 Zampling.Player = Backbone.Model.extend({
   initialize: function() {
     this.ctx = new (window.webkitAudioContext || window.AudioContext)();
+
+    var compressor = this.ctx.createDynamicsCompressor();
+    compressor.connect(this.ctx.destination)
+    this.destination = compressor
+
     var gain = this.ctx.createGain()
     gain.gain.value = 1
-
-    this.destination = gain
-    this.destination.connect(this.ctx.destination)
+    gain.connect(compressor)
 
     this.sources = []
   },
@@ -14,7 +17,6 @@ Zampling.Player = Backbone.Model.extend({
 
     var when = 0
     var chunks = T.attributes.chunks
-    // chunks = chunks.reverse()
 
     chunks.forEach(function(node) {
       var source = self.ctx.createBufferSource()
