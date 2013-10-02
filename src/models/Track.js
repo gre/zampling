@@ -71,8 +71,27 @@ Zampling.Track = Backbone.Model.extend({
     return cuttedChunkNode;
   },
   // returns an array which is the split of chunkNode into two chunkNodes
-  insert: function (chunks, at) {
-    throw "Not Implemented";
+  insert: function (chunkNodes, at) {
+    var currentChunkNode = this.get("chunks"),
+        step = currentChunkNode.chunk.samples.length,
+        i;
+    for(i=step;i<at;i=i+at) {
+      currentChunkNode = currentChunkNode.next;
+      step = currentChunkNode.chunk.samples.length;
+    }
+
+    if( i != at ) currentChunkNode = currentChunkNode.split(step - (i-at), this.get("ctx"));
+
+    var chunksLoop = chunks;
+
+    while(chunksLoop.next) {
+      chunksLoop = chunksLoop.next;
+    }
+
+    chunksLoop.next = currentChunkNode.next;
+    currentChunkNode.next = chunks;
+
+    this.trigger("change:chunks", this, this.get("chunks"));
   },
   copy: function (from, to) { // returns chunks
     throw "Not Implemented";
