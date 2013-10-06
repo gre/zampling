@@ -11,26 +11,20 @@ Zampling.Track = Backbone.Model.extend({
   },
 
   cut: function (from, to) {
-    var chunks = this.get("chunks");
-    var ctx = this.get("ctx");
-    var fromChunk = chunks.split(from, ctx);
-    var toChunk = chunks.split(to, ctx);
-    var cuttedChunkNode = fromChunk.clone();
-    var lastChunk = fromChunk;
-    while (lastChunk.next && lastChunk.next!==toChunk) {
-      lastChunk = lastChunk.next;
-    }
-    lastChunk.next = null;
-    fromChunk.next = toChunk;
+    var chunks = this.get("chunks"), ctx = this.get("ctx");
+    var fromChunks = chunks.split(from, ctx);
+    var toChunks = chunks.split(to, ctx);
+    var cuttedChunkNode = fromChunks[1].clone();
+    toChunks[0].next = null;
+    fromChunks[1].next = toChunks[1];
     this._triggerChunksChange();
     return cuttedChunkNode;
   },
 
   copy: function (from, to) {
-    var chunks = this.get("chunks");
-    var ctx = this.get("ctx");
-    var fromChunk = chunks.split(from, ctx);
-    var toChunk = chunks.split(to, ctx);
+    var chunks = this.get("chunks"), ctx = this.get("ctx");
+    var fromChunk = chunks.split(from, ctx)[1];
+    var toChunk = chunks.split(to, ctx)[1];
     var clone = fromChunk.clone();
     var cloneNode = clone;
     for (var n=fromChunk; n.next && n.next!==toChunk; n=n.next) {
@@ -43,18 +37,18 @@ Zampling.Track = Backbone.Model.extend({
 
   insert: function (chunkNodes, at) {
     var chunks = this.get("chunks"), ctx = this.get("ctx");
-    var after = chunks.split(at, ctx);
+    var splits = chunks.split(at, ctx);
+    var before = splits[0];
+    var after = splits[1];
     var last = chunkNodes.last();
-    if (after === chunks) {
-      last.next = chunks;
-      this.set("chunks", chunkNodes);
-    }
-    else {
-      var before = chunks;
-      while (before.next!==after) before = before.next;
+    if (before) {
       before.next = chunkNodes;
       last.next = after;
       this._triggerChunksChange();
+    }
+    else {
+      last.next = chunks;
+      this.set("chunks", chunkNodes);
     }
   },
 
@@ -125,9 +119,7 @@ Zampling.Track = Backbone.Model.extend({
     // Cutting in multiple chunks of size 'sampleSize'
     if (!samplesSize) samplesSize = Zampling.Track.DEFAULT_SAMPLES_SIZE;
     var head = new Zampling.ChunkNode(new Zampling.Chunk(audioBuffer), null);
-    for (var i=samplesSize; i<audioBuffer.length; i += samplesSize) {
-      head.split(i, ctx);
-    }
+    for (var n=head; n.chunk.length > samplesSize; n = n.split(samplesSize, ctx)[1]);
     return new Zampling.Track({
       chunks: head,
       ctx: ctx

@@ -106,20 +106,20 @@ Zampling.ChunkNode.prototype = {
     while (this.merge(ctx));
   },
 
-  // Split the Chunk list at a given position and return the right part of the split
-  split: function (at, ctx) {
+  // Split the Chunk list at a given position and return the [left,right] part of the split
+  split: function (at, ctx, prevNode) {
     if (at === 0) {
-      return this;
+      return [prevNode||null, this];
     }
     else if (at < this.chunk.length) {
       var chunks = this.chunk.split(at, ctx),
           chunkNode = new Zampling.ChunkNode(chunks[1], this.next);
       this.chunk = chunks[0],
       this.next = chunkNode;
-      return chunkNode;
+      return [this, chunkNode];
     }
     else if (this.chunk.length <= at && this.next) {
-      return this.next.split(at-this.chunk.length, ctx);
+      return this.next.split(at-this.chunk.length, ctx, this);
     }
     else {
       throw new Error("Invalid split");
