@@ -4,19 +4,15 @@
 Zampling.Chunk = function(audioBuffer) {
   this.audioBuffer = audioBuffer;
   this.length = audioBuffer.length;
-}
+};
 
 Zampling.Chunk.prototype = {
   clone: function (ctx) {
-    var buffer = ctx.createBuffer(1, this.audioBuffer.length, ctx.sampleRate);
+    var buffer = ctx.createBuffer(1, this.length, ctx.sampleRate);
     var thisArray = this.audioBuffer.getChannelData(0); // FIXME only support left channel
     var floatArray = buffer.getChannelData(0);
     floatArray.set(thisArray);
     return new Zampling.Chunk(buffer);
-  },
-
-  merge: function (other) {
-    throw "NotImplemented";
   },
 
   split: function(at, ctx) {
@@ -93,9 +89,21 @@ Zampling.ChunkNode.prototype = {
     return node;
   },
 
-  // Merge with the next chunk
-  merge: function () {
-    throw "NotImplemented";
+  // Merge all next chunks
+  merge: function (ctx) {
+    var buffer = ctx.createBuffer(1, this.length(), ctx.sampleRate);
+    var data = buffer.getChannelData(0);
+    var offset = 0;
+    this.forEach(function (node) {
+      data.set(node.chunk.audioBuffer.getChannelData(0), offset);
+      offset += node.chunk.length;
+    });
+    this.chunk = new Zampling.Chunk(buffer);
+    this.next = null;
+  },
+
+  mergeAll: function (ctx) {
+    while (this.merge(ctx));
   },
 
   // Split the Chunk list at a given position and return the right part of the split

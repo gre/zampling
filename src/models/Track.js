@@ -123,25 +123,11 @@ Zampling.Track = Backbone.Model.extend({
   createFromAudioBuffer: function (audioBuffer, ctx, samplesSize) {
     if (!audioBuffer || audioBuffer.length === 0) throw "AudioBuffer is empty.";
     // Cutting in multiple chunks of size 'sampleSize'
-    if (!samplesSize) samplesSize = Zampling.Track.DEFAULT_SAMPLES_SIZE
-
-    var length = audioBuffer.length;
-    var float32ArrayBuffer = audioBuffer.getChannelData(0); // FIXME only left supported
-
-    var chunks = [];
-    for (var i=0; i<length; i += samplesSize) {
-      var size = Math.min(length-i, samplesSize);
-      var audioBuffer = ctx.createBuffer(1, size, ctx.sampleRate);
-      var floatArray = audioBuffer.getChannelData(0);
-      floatArray.set(float32ArrayBuffer.subarray(i, i+size));
-      var chunk = new Zampling.Chunk(audioBuffer);
-      chunks.push(chunk);
+    if (!samplesSize) samplesSize = Zampling.Track.DEFAULT_SAMPLES_SIZE;
+    var head = new Zampling.ChunkNode(new Zampling.Chunk(audioBuffer), null);
+    for (var i=samplesSize; i<audioBuffer.length; i += samplesSize) {
+      head.split(i, ctx);
     }
-
-    var head = _.reduceRight(chunks, function (nextChunk, chunk) {
-      return new Zampling.ChunkNode(chunk, nextChunk);
-    }, null);
-
     return new Zampling.Track({
       chunks: head,
       ctx: ctx
