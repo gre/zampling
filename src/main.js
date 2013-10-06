@@ -54,7 +54,7 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
   $("input[type='file']").change(function() {
     QaudioFileInput(ctx, this).then(function(buf) {
       buffer = buf;
-      return Zampling.Track.createFromArrayBuffer(buf.getChannelData(0), ctx)
+      return Zampling.Track.createFromAudioBuffer(buf, ctx)
     })
     .then(function (track) {
       player.tracks.add(track);
@@ -193,13 +193,13 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
       var track = null;
 
       // get array buffer from stream
-      record = recorder(function(e) {
+      record = recorder(function(buffer) {
         if(!track) {
-          track = Zampling.Track.createFromArrayBuffer(e.array, ctx);
+          track = Zampling.Track.createFromAudioBuffer(buffer, ctx);
           player.tracks.add(track);
         }
         else {
-          var node = new Zampling.ChunkNode(new Zampling.Chunk(e.array, e.buffer));
+          var node = new Zampling.ChunkNode(new Zampling.Chunk(buffer));
           track.insert(node, track.length());
         }
       });
@@ -218,12 +218,8 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
       var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       var array = new Float32Array(e.inputBuffer.getChannelData(0));
       buffer.getChannelData(0).set(array);
-      processingHandler({
-        buffer: buffer,
-        array: array
-      });
-    }
-
+      processingHandler(buffer);
+    };
     return processor;
   }
 

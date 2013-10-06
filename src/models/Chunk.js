@@ -1,24 +1,28 @@
-Zampling.Chunk = function(samples, audioBuffer) {
-  this.samples = samples;
+Zampling.Chunk = function(audioBuffer) {
   this.audioBuffer = audioBuffer;
 }
 
 Zampling.Chunk.prototype.clone = function (ctx) {
-  var buffer = ctx.createBuffer(1, this.samples.length, ctx.sampleRate);
-  return new Zampling.Chunk(buffer.getChannelData(0), buffer);
+  var buffer = ctx.createBuffer(1, this.audioBuffer.length, ctx.sampleRate);
+  var thisArray = this.audioBuffer.getChannelData(0); // FIXME only support left channel
+  var floatArray = buffer.getChannelData(0);
+  floatArray.set(thisArray);
+  return new Zampling.Chunk(buffer);
 }
 
 Zampling.Chunk.prototype.split = function(at, ctx) {
+  var samples = this.audioBuffer.getChannelData(0);
   var audioBuffer1 = ctx.createBuffer(1, at, ctx.sampleRate),
-      audioBuffer2 = ctx.createBuffer(1, (this.samples.length - at), ctx.sampleRate),
+      audioBuffer2 = ctx.createBuffer(1, (this.audioBuffer.length - at), ctx.sampleRate),
       floatArray1 = audioBuffer1.getChannelData(0),
       floatArray2 = audioBuffer2.getChannelData(0);
 
-  floatArray1.set(this.samples.subarray(0, at));
-  floatArray2.set(this.samples.subarray(at, this.samples.length));
+  // FIXME: only doing on left channel
+  floatArray1.set(samples.subarray(0, at));
+  floatArray2.set(samples.subarray(at, samples.length));
 
-  var chunk1 = new Zampling.Chunk(floatArray1, audioBuffer1),
-      chunk2 = new Zampling.Chunk(floatArray2, audioBuffer2);
+  var chunk1 = new Zampling.Chunk(audioBuffer1),
+      chunk2 = new Zampling.Chunk(audioBuffer2);
 
   return [chunk1, chunk2];
 }

@@ -18,17 +18,19 @@ Zampling.Track = Backbone.Model.extend({
     var min = Infinity, max = -Infinity;
     var currentChunkI = 0;
     var currentChunkNode = this.get("chunks");
-    var currentChunkSize = currentChunkNode.chunk.samples.length;
+    var currentChunkSize = currentChunkNode.chunk.audioBuffer.length;
+    var currentSamples = currentChunkNode.chunk.audioBuffer.getChannelData(0); // FIXME only on left channel
     for (var i = from; i < to; ++i) {
       while (currentChunkNode && i > currentChunkI + currentChunkSize) {
         currentChunkI += currentChunkSize;
         currentChunkNode = currentChunkNode.next;
         if (currentChunkNode) {
-          currentChunkSize = currentChunkNode.chunk.samples.length;
+          currentChunkSize = currentChunkNode.chunk.audioBuffer.length;
+          currentSamples = currentChunkNode.chunk.audioBuffer.getChannelData(0);
         }
       }
       if (!currentChunkNode) break;
-      var value = currentChunkNode.chunk.samples[i-currentChunkI];
+      var value = currentSamples[i-currentChunkI];
       if (value < min) min = value;
       if (value > max) max = value;
     }
@@ -39,12 +41,12 @@ Zampling.Track = Backbone.Model.extend({
   },
   cut: function (from, to) {
     var currentChunkNode = this.get("chunks"),
-        jump = currentChunkNode.chunk.samples.length,
+        jump = currentChunkNode.chunk.audioBuffer.length,
         i;
 
     for(i=jump; i<from; i=i+jump) {
       currentChunkNode = currentChunkNode.next;
-      jump = currentChunkNode.chunk.samples.length;
+      jump = currentChunkNode.chunk.audioBuffer.length;
     }
     if( ! ((i-from) === 0) ) {
        currentChunkNode = currentChunkNode.split(jump - (i-from), this.get("ctx"))
@@ -54,12 +56,12 @@ Zampling.Track = Backbone.Model.extend({
 
     var j;
     var stopChunkNode = cuttedChunkNode;
-    var step = stopChunkNode.chunk.samples.length;
+    var step = stopChunkNode.chunk.audioBuffer.length;
 
     var distance = to - from;
     for(j=step;j<distance;j=j+step) {
       stopChunkNode = stopChunkNode.next;
-      step = stopChunkNode.chunk.samples.length;
+      step = stopChunkNode.chunk.audioBuffer.length;
     }
 
     if( (j-distance) === 0) {
@@ -78,11 +80,11 @@ Zampling.Track = Backbone.Model.extend({
   // returns an array which is the split of chunkNode into two chunkNodes
   insert: function (chunkNodes, at) {
     var currentChunkNode = this.get("chunks"),
-        step = currentChunkNode.chunk.samples.length,
+        step = currentChunkNode.chunk.audioBuffer.length,
         i;
     for(i=step; i<at; i=i+step) {
       currentChunkNode = currentChunkNode.next;
-      step = currentChunkNode.chunk.samples.length;
+      step = currentChunkNode.chunk.audioBuffer.length;
     }
 
     if( i != at ) currentChunkNode = currentChunkNode.split(step - (i-at), this.get("ctx"));
@@ -105,7 +107,7 @@ Zampling.Track = Backbone.Model.extend({
     var length = 0
     var chunk = this.get('chunks');
     while(chunk != undefined) {
-      length += chunk.chunk.samples.length
+      length += chunk.chunk.audioBuffer.length
       chunk = chunk.next
     }
     return length;
@@ -117,8 +119,10 @@ Zampling.Track = Backbone.Model.extend({
     var index = 0;
 
     while(chunk != undefined) {
-      for (var i=0; i < chunk.chunk.samples.length; i++) {
-        result[index++] = chunk.chunk.samples[i]
+      var samples = chunk.chunk.audioBuffer.getChannelData(0); // FIXME only support left channel
+      // FIXME: we probably can use Float32Array's set function
+      for (var i=0; i < chunk.chunk.audioBuffer.length; i++) {
+        result[index++] = samples[i];
       }
       chunk = chunk.next
     }
@@ -126,12 +130,13 @@ Zampling.Track = Backbone.Model.extend({
   }
 }, {
   DEFAULT_SAMPLES_SIZE: 44100,
-  createFromArrayBuffer: function (float32ArrayBuffer, ctx, samplesSize) {
-    if (!float32ArrayBuffer || float32ArrayBuffer.length === 0) throw "float32ArrayBuffer is empty.";
+  createFromAudioBuffer: function (audioBuffer, ctx, samplesSize) {
+    if (!audioBuffer || audioBuffer.length === 0) throw "AudioBuffer is empty.";
     // Cutting in multiple chunks of size 'sampleSize'
     if (!samplesSize) samplesSize = Zampling.Track.DEFAULT_SAMPLES_SIZE
 
-    var length = float32ArrayBuffer.length;
+    var length = audioBuffer.length;
+    var float32ArrayBuffer = audioBuffer.getChannelData(0); // FIXME only left supported
 
     var chunks = [];
     for (var i=0; i<length; i += samplesSize) {
@@ -139,7 +144,7 @@ Zampling.Track = Backbone.Model.extend({
       var audioBuffer = ctx.createBuffer(1, size, ctx.sampleRate);
       var floatArray = audioBuffer.getChannelData(0);
       floatArray.set(float32ArrayBuffer.subarray(i, i+size));
-      var chunk = new Zampling.Chunk(floatArray, audioBuffer);
+      var chunk = new Zampling.Chunk(audioBuffer);
       chunks.push(chunk);
     }
 
