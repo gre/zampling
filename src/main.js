@@ -7,6 +7,7 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
   var $tracks = $("#tracks");
 
   var ctx = new (window.webkitAudioContext || window.AudioContext)();
+  var audioChunker = new AudioChunker(ctx);
 
   var eventuallyMediaStream = (function(d) {
     navigator.getUserMedia({ audio: true }, d.resolve, d.reject);
@@ -22,6 +23,14 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
     gain.connect(compressor);
     return compressor;
   });
+
+  function createTrackFromAudioBuffer (audioBuffer) {
+    var chunks = audioChunker.createFromAudioBuffer(audioBuffer);
+    return new Zampling.Track({
+      sampleRate: ctx.sampleRate,
+      chunks: chunks
+    });
+  };
 
   var player = new Zampling.Player();
 
@@ -70,7 +79,7 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
   $("input[type='file']").change(function() {
     QaudioFileInput(ctx, this).then(function(buf) {
       buffer = buf;
-      return Zampling.Track.createFromAudioBuffer(buf, ctx)
+      return createTrackFromAudioBuffer(buf);
     })
     .then(function (track) {
       player.tracks.add(track);
@@ -190,11 +199,11 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
         // get array buffer from stream
         record = Zampling.createRecorderNode(ctx, function (buffer) {
           if(!track) {
-            track = Zampling.Track.createFromAudioBuffer(buffer, ctx);
+            track = createTrackFromAudioBuffer(buffer);
             player.tracks.add(track);
           }
           else {
-            track.append(new Zampling.ChunkNode(new Zampling.Chunk(buffer), null));
+            track.append(new audioChunker.ChunkNode(new audioChunker.Chunk(buffer), null));
           }
         });
         record.connect(recordOut);

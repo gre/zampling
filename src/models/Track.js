@@ -11,17 +11,17 @@ Zampling.Track = Backbone.Model.extend({
   },
 
   cut: function (from, to) {
-    var cuttedChunkNode = this.get("chunks").slice(this.get("ctx"), from, to);
+    var cuttedChunkNode = this.get("chunks").slice(from, to);
     this._triggerChunksChange();
     return cuttedChunkNode;
   },
 
   copy: function (from, to) {
-    return this.get("chunks").subset(this.get("ctx"), from, to);
+    return this.get("chunks").subset(from, to);
   },
 
   insert: function (chunkNodes, at) {
-    this.get("chunks").insert(this.get("ctx"), chunkNodes, at);
+    this.get("chunks").insert(chunkNodes, at);
     this._triggerChunksChange();
   },
 
@@ -31,17 +31,16 @@ Zampling.Track = Backbone.Model.extend({
   },
 
   toAudioBuffer: function() {
-    var ctx = this.get("ctx");
-    var node = this.get("chunks").clone(ctx).merge(ctx);
+    var node = this.get("chunks").copy().merge();
     return node.chunk.audioBuffer;
   },
 
   getCursorStartTime: function () {
-    return this.get("cursorstartx") / (this.get("zoom") * this.get("ctx").sampleRate);
+    return this.get("cursorstartx") / (this.get("zoom") * this.get("sampleRate"));
   },
 
   getCursorEndTime: function () {
-    return this.get("cursorendx") / (this.get("zoom") * this.get("ctx").sampleRate);
+    return this.get("cursorendx") / (this.get("zoom") * this.get("sampleRate"));
   },
 
   getStat: function (from, to) {
@@ -73,19 +72,6 @@ Zampling.Track = Backbone.Model.extend({
   _triggerChunksChange: function (opts) {
     this.trigger("change:chunks", this, this.get("chunks"), opts||{});
     this.trigger("change", this, opts||{});
-  }
-}, {
-  DEFAULT_SAMPLES_SIZE: 44100,
-  createFromAudioBuffer: function (audioBuffer, ctx, samplesSize) {
-    if (!audioBuffer || audioBuffer.length === 0) throw "AudioBuffer is empty.";
-    // Cutting in multiple chunks of size 'sampleSize'
-    if (!samplesSize) samplesSize = Zampling.Track.DEFAULT_SAMPLES_SIZE;
-    var head = new Zampling.ChunkNode(new Zampling.Chunk(audioBuffer), null);
-    for (var n=head; n.chunk.length > samplesSize; n = n.split(samplesSize, ctx)[1]);
-    return new Zampling.Track({
-      chunks: head,
-      ctx: ctx
-    });
   }
 });
 

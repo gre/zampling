@@ -1,182 +1,197 @@
 // A chunk represents a portion of an Audio Buffer
 // A Chunk is immutable: all functions returns new chunks and never change the original one.
 
-Zampling.Chunk = function(audioBuffer) {
-  this.audioBuffer = audioBuffer;
-  this.length = audioBuffer.length;
-};
+AudioChunker = function (audioContext) {
+  var lib = {};
 
-Zampling.Chunk.prototype = {
-  clone: function (ctx) {
-    var buffer = ctx.createBuffer(1, this.length, ctx.sampleRate);
-    var thisArray = this.audioBuffer.getChannelData(0); // FIXME only support left channel
-    var floatArray = buffer.getChannelData(0);
-    floatArray.set(thisArray);
-    return new Zampling.Chunk(buffer);
-  },
+  lib.DEFAULT_SAMPLES_SIZE = 44100;
+  lib.createFromAudioBuffer = function (audioBuffer, samplesSize) {
+    if (!audioBuffer || audioBuffer.length === 0) throw "AudioBuffer is empty.";
+    if (!samplesSize) samplesSize = lib.DEFAULT_SAMPLES_SIZE;
+    var head = new lib.ChunkNode(new lib.Chunk(audioBuffer), null);
+    for (var n=head; n.chunk.length > samplesSize; n = n.split(samplesSize)[1]);
+    return head;
+  };
 
-  split: function(at, ctx) {
-    var samples = this.audioBuffer.getChannelData(0);
-    var audioBuffer1 = ctx.createBuffer(1, at, ctx.sampleRate),
-        audioBuffer2 = ctx.createBuffer(1, (this.audioBuffer.length - at), ctx.sampleRate),
-        floatArray1 = audioBuffer1.getChannelData(0),
-        floatArray2 = audioBuffer2.getChannelData(0);
+  lib.Chunk = function(audioBuffer) {
+    this.audioBuffer = audioBuffer;
+    this.length = audioBuffer.length;
+  };
 
-    // FIXME: only doing on left channel
-    floatArray1.set(samples.subarray(0, at));
-    floatArray2.set(samples.subarray(at, samples.length));
+  lib.Chunk.prototype = {
+    clone: function () {
+      var buffer = audioContext.createBuffer(1, this.length, audioContext.sampleRate);
+      var thisArray = this.audioBuffer.getChannelData(0); // FIXME only support left channel
+      var floatArray = buffer.getChannelData(0);
+      floatArray.set(thisArray);
+      return new lib.Chunk(buffer);
+    },
 
-    var chunk1 = new Zampling.Chunk(audioBuffer1),
-        chunk2 = new Zampling.Chunk(audioBuffer2);
+    split: function(at) {
+      var samples = this.audioBuffer.getChannelData(0);
+      var audioBuffer1 = audioContext.createBuffer(1, at, audioContext.sampleRate),
+          audioBuffer2 = audioContext.createBuffer(1, (this.audioBuffer.length - at), audioContext.sampleRate),
+          floatArray1 = audioBuffer1.getChannelData(0),
+          floatArray2 = audioBuffer2.getChannelData(0);
 
-    return [chunk1, chunk2];
-  }
-};
+      // FIXME: only doing on left channel
+      floatArray1.set(samples.subarray(0, at));
+      floatArray2.set(samples.subarray(at, samples.length));
 
-// A ChunkNode represents a Chained list of chunk
-// A ChunkNode is mutable: functions will transform the existing structure. Use clone() to copy it.
+      var chunk1 = new lib.Chunk(audioBuffer1),
+          chunk2 = new lib.Chunk(audioBuffer2);
 
-Zampling.ChunkNode = function(chunk, nextChunkNode)  {
-  this.chunk = chunk;
-  this.next = nextChunkNode || null;
-};
-
-Zampling.ChunkNode.prototype = {
-  // Create a full copy of the ChunkNode list
-  copy: function (ctx) {
-    return new Zampling.ChunkNode(this.chunk.clone(ctx), this.next ? this.next.copy(ctx) : null);
-  },
-
-  // Only clone a node
-  clone: function() {
-    return new Zampling.ChunkNode(this.chunk, this.next);
-  },
-
-  set: function (chunkNode) {
-    this.chunk = chunkNode.chunk;
-    this.next = chunkNode.next;
-  },
-
-  forEach: function(f, fcontext) {
-    for (var node = this; node; node = node.next) {
-      f.call(fcontext||f, node);
+      return [chunk1, chunk2];
     }
-  },
+  };
 
-  map: function(f, fcontext) {
-    var t = [];
-    for (var node = this; node; node = node.next) {
-      t.push(f.call(fcontext||f, node));
-    }
-    return t;
-  },
+  // A ChunkNode represents a Chained list of chunk
+  // A ChunkNode is mutable: functions will transform the existing structure. Use clone() to copy it.
 
-  length: function () {
-    var length = 0;
-    this.forEach(function(node) {
-      length += node.chunk.length;
-    });
-    return length;
-  },
+  lib.ChunkNode = function(chunk, nextChunkNode)  {
+    this.chunk = chunk;
+    this.next = nextChunkNode || null;
+  };
 
-  find: function (iterator, itctx) {
-    for (var node = this; node; node = node.next) {
-      if (iterator.call(itctx||iterator, node)) {
-        return node;
+  lib.ChunkNode.prototype = {
+    // Create a full copy of the ChunkNode list
+    copy: function () {
+      return new lib.ChunkNode(this.chunk.clone(), this.next ? this.next.copy() : null);
+    },
+
+    // Only clone a node
+    clone: function() {
+      return new lib.ChunkNode(this.chunk, this.next);
+    },
+
+    set: function (chunkNode) {
+      this.chunk = chunkNode.chunk;
+      this.next = chunkNode.next;
+    },
+
+    forEach: function(f, fcontext) {
+      for (var node = this; node; node = node.next) {
+        f.call(fcontext||f, node);
       }
-    }
-    return null;
-  },
+    },
 
-  last: function () {
-    var node = this;
-    while (node.next) node = node.next;
-    return node;
-  },
+    map: function(f, fcontext) {
+      var t = [];
+      for (var node = this; node; node = node.next) {
+        t.push(f.call(fcontext||f, node));
+      }
+      return t;
+    },
 
-  // Merge all next chunks
-  merge: function (ctx) {
-    var buffer = ctx.createBuffer(1, this.length(), ctx.sampleRate);
-    var data = buffer.getChannelData(0);
-    var offset = 0;
-    this.forEach(function (node) {
-      data.set(node.chunk.audioBuffer.getChannelData(0), offset);
-      offset += node.chunk.length;
-    });
-    this.chunk = new Zampling.Chunk(buffer);
-    this.next = null;
-    return this;
-  },
+    length: function () {
+      var length = 0;
+      this.forEach(function(node) {
+        length += node.chunk.length;
+      });
+      return length;
+    },
 
-  append: function (node) {
-    this.last().next = node;
-    return this;
-  },
+    find: function (iterator, itctx) {
+      for (var node = this; node; node = node.next) {
+        if (iterator.call(itctx||iterator, node)) {
+          return node;
+        }
+      }
+      return null;
+    },
 
-  // Split the Chunk list at a given position and return the [left,right] part of the split
-  split: function (at, ctx, prevNode) {
-    if (at === 0) {
-      return [prevNode||null, this];
-    }
-    else if (at < this.chunk.length) {
-      var chunks = this.chunk.split(at, ctx),
-          chunkNode = new Zampling.ChunkNode(chunks[1], this.next);
-      this.chunk = chunks[0],
-      this.next = chunkNode;
-      return [this, chunkNode];
-    }
-    else if (this.chunk.length <= at && this.next) {
-      return this.next.split(at-this.chunk.length, ctx, this);
-    }
-    else {
-      throw new Error("index out of bound ("+at+")");
-    }
-  },
+    last: function () {
+      var node = this;
+      while (node.next) node = node.next;
+      return node;
+    },
 
-  // Remove a slice of the original chunklist and returns this slice.
-  slice: function (ctx, from, to) {
-    if (typeof from !== "number") throw new Error("from is required");
-    if (!to) to = this.length();
-    var fromChunks = this.split(from, ctx);
-    var toChunks = this.split(to, ctx);
-    var cuttedChunkNode = fromChunks[1].clone();
-    toChunks[0].next = null;
-    fromChunks[1].next = toChunks[1];
-    return cuttedChunkNode;
-  },
+    // Merge all next chunks
+    merge: function () {
+      var buffer = audioContext.createBuffer(1, this.length(), audioContext.sampleRate);
+      var data = buffer.getChannelData(0);
+      var offset = 0;
+      this.forEach(function (node) {
+        data.set(node.chunk.audioBuffer.getChannelData(0), offset);
+        offset += node.chunk.length;
+      });
+      this.chunk = new lib.Chunk(buffer);
+      this.next = null;
+      return this;
+    },
 
-  // Preserve the original chunklist and returns a slice.
-  subset: function (ctx, from, to) {
-    if (typeof from !== "number") throw new Error("from is required");
-    if (!to) to = this.length();
-    var fromChunk = this.split(from, ctx)[1];
-    var toChunk = this.split(to, ctx)[1];
-    var clone = fromChunk.clone();
-    var cloneNode = clone;
-    for (var n=fromChunk; n.next && n.next!==toChunk; n=n.next) {
-      cloneNode.next = n.next.clone();
-      cloneNode = cloneNode.next;
-    }
-    cloneNode.next = null;
-    return clone;
-  },
+    append: function (node) {
+      this.last().next = node;
+      return this;
+    },
 
-  insert: function (ctx, chunkNodes, at) {
-    var splits = this.split(at, ctx);
-    var before = splits[0];
-    var after = splits[1];
-    var last = chunkNodes.last();
-    if (before) {
-      before.next = chunkNodes;
-      last.next = after;
+    // Split the Chunk list at a given position and return the [left,right] part of the split
+    split: function (at, prevNode) {
+      if (at === 0) {
+        return [prevNode||null, this];
+      }
+      else if (at < this.chunk.length) {
+        var chunks = this.chunk.split(at),
+            chunkNode = new lib.ChunkNode(chunks[1], this.next);
+        this.chunk = chunks[0],
+        this.next = chunkNode;
+        return [this, chunkNode];
+      }
+      else if (this.chunk.length <= at && this.next) {
+        return this.next.split(at-this.chunk.length, this);
+      }
+      else {
+        throw new Error("index out of bound ("+at+")");
+      }
+    },
+
+    // Remove a slice of the original chunklist and returns this slice.
+    slice: function (from, to) {
+      if (typeof from !== "number") throw new Error("from is required");
+      if (!to) to = this.length();
+      var fromChunks = this.split(from);
+      var toChunks = this.split(to);
+      var cuttedChunkNode = fromChunks[1].clone();
+      toChunks[0].next = null;
+      fromChunks[1].next = toChunks[1];
+      return cuttedChunkNode;
+    },
+
+    // Preserve the original chunklist and returns a slice.
+    subset: function (from, to) {
+      if (typeof from !== "number") throw new Error("from is required");
+      if (!to) to = this.length();
+      var fromChunk = this.split(from)[1];
+      var toChunk = this.split(to)[1];
+      var clone = fromChunk.clone();
+      var cloneNode = clone;
+      for (var n=fromChunk; n.next && n.next!==toChunk; n=n.next) {
+        cloneNode.next = n.next.clone();
+        cloneNode = cloneNode.next;
+      }
+      cloneNode.next = null;
+      return clone;
+    },
+
+    insert: function (chunkNodes, at) {
+      var splits = this.split(at);
+      var before = splits[0];
+      var after = splits[1];
+      var last = chunkNodes.last();
+      if (before) {
+        before.next = chunkNodes;
+        last.next = after;
+      }
+      else {
+        last.next = this.clone();
+        this.set(chunkNodes);
+      }
+      return this;
     }
-    else {
-      last.next = this.clone();
-      this.set(chunkNodes);
-    }
-    return this;
   }
-}
+
+  return lib;
+};
 
 // Following probably not required anymore
 /*
