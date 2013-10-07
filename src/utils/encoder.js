@@ -1,3 +1,5 @@
+// FIXME namespace
+
 var Encoder = {}
 
 Encoder.floatTo16BitPCM = function (output, offset, input) {

@@ -2,10 +2,35 @@
 navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
 
 (function () {
-
+  var $record = $("#record");
+  var $stopRecord = $("#stopRecord");
   var $tracks = $("#tracks");
 
   var ctx = new (window.webkitAudioContext || window.AudioContext)();
+  var audioChunker = new AudioChunker(ctx);
+
+  var eventuallyMediaStream = (function(d) {
+    navigator.getUserMedia({ audio: true }, d.resolve, d.reject);
+    return d.promise;
+  } (Q.defer()));
+
+  var eventuallyMicrophone = eventuallyMediaStream.then(function (mediaStream) {
+    var mic = ctx.createMediaStreamSource(mediaStream);
+    var gain = ctx.createGain();
+    var compressor = ctx.createDynamicsCompressor();
+    gain.gain.value = 4;
+    mic.connect(gain);
+    gain.connect(compressor);
+    return compressor;
+  });
+
+  function createTrackFromAudioBuffer (audioBuffer) {
+    var chunks = audioChunker.createFromAudioBuffer(audioBuffer);
+    return new Zampling.Track({
+      sampleRate: ctx.sampleRate,
+      chunks: chunks
+    });
+  };
 
   var player = new Zampling.Player();
 
@@ -42,19 +67,20 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
   /*
   QaudioXHR(ctx, "musics/circus.mp3")
     .then(function (audioBuffer) {
-      return Zampling.Track.createFromArrayBuffer(audioBuffer.getChannelData(0), ctx);
+      return createTrackFromAudioBuffer(audioBuffer, ctx);
     })
     .then(function (track) {
       player.tracks.add(track);
-    });
-    */
+    })
+    .done();
+  */
 
     var buffer;
 
   $("input[type='file']").change(function() {
     QaudioFileInput(ctx, this).then(function(buf) {
       buffer = buf;
-      return Zampling.Track.createFromArrayBuffer(buf.getChannelData(0), ctx)
+      return createTrackFromAudioBuffer(buf);
     })
     .then(function (track) {
       player.tracks.add(track);
@@ -88,41 +114,28 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
   });
 
 
-  /*
-  var zooms = [0.0001, 0.001, 0.005, 0.01, 0.05, 0.5].sort();
-  var currentZoomIndex = 1;
-  player.set("zoom", zooms[currentZoomIndex]);
+  var clipboard;
 
-  player.on("button-zoomin", function () {
-    if (currentZoomIndex < zooms.length-1) {
-      currentZoomIndex ++;
-      this.set("zoom", zooms[currentZoomIndex]);
-    }
+  player.on("button-copy", function () {
+    var track = player.get("currentTrack");
+    var start = track.getCursorStartTime();
+    var end = track.getCursorEndTime();
+    clipboard = track.copy(Math.round(start*ctx.sampleRate), Math.round(end*ctx.sampleRate));
   });
-
-  player.on("button-zoomout", function () {
-    if (currentZoomIndex > 0) {
-      currentZoomIndex --;
-      this.set("zoom", zooms[currentZoomIndex]);
-    }
-  });
-  */
-
-  var cutData;
 
   player.on("button-cut", function () {
     var track = player.get("currentTrack");
     var start = track.getCursorStartTime();
     var end = track.getCursorEndTime();
-    cutData = track.cut(Math.round(start*ctx.sampleRate), Math.round(end*ctx.sampleRate));
+    clipboard = track.cut(Math.round(start*ctx.sampleRate), Math.round(end*ctx.sampleRate));
   });
 
   player.on("button-paste", function () {
-    if (cutData) {
+    if (clipboard) {
       var track = player.get("currentTrack");
       var start = track.getCursorStartTime();
-      track.insert(cutData, Math.round(start*ctx.sampleRate));
-      cutData = null;
+      var data = clipboard.copy(ctx);
+      track.insert(data, Math.round(start*ctx.sampleRate));
     }
   });
   
@@ -149,10 +162,13 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
   });
 
   player.on("button-download", function () {
-    //var view = Encoder.encodeWAV([buffer.getChannelData(0), buffer.getChannelData(1)]);
-
-    // TODO handle multiple tracks
-    var view = Encoder.encodeWAV([player.tracks.head().toFloat32Array()])
+    var audioBuffer = player.tracks.head().toAudioBuffer();
+    var numberOfChannels = audioBuffer.numberOfChannels;
+    var channels = [];
+    for (var i=0; i<numberOfChannels; ++i) {
+      channels.push(audioBuffer.getChannelData(i));
+    }
+    var view = Encoder.encodeWAV(channels);
 
     var blob = new Blob ( [ view ], { type : 'audio/wav' } );
 
@@ -167,71 +183,39 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
     var click = document.createEvent("Event");
     click.initEvent("click", true, true);
     hf.dispatchEvent(click);
-  })
+  });
 
-  var eventuallyMediaStream = (function(d) {
-    navigator.getUserMedia({ audio: true }, d.resolve, d.reject);
-    return d.promise;
-  } (Q.defer()));
+  $record.addClass("disabled");
+  $stopRecord.hide();
+  eventuallyMicrophone.then(function(mic) {
+    $record.removeClass("disabled");
+    var record = null;
+    var recordOut = ctx.createGain();
+    recordOut.connect(ctx.destination);
+    $record.click(function() {
+        $stopRecord.show();
+        // tracks management
+        var track = null;
 
-  var mediaStream = null;
-  var mic = null;
-  var record = null;
-  $("#record").click(function() {
+        // get array buffer from stream
+        record = Zampling.createRecorderNode(ctx, function (buffer) {
+          if(!track) {
+            track = createTrackFromAudioBuffer(buffer);
+            player.tracks.add(track);
+          }
+          else {
+            track.append(new audioChunker.ChunkNode(new audioChunker.Chunk(buffer), null));
+          }
+        });
+        record.connect(recordOut);
+        mic.connect(record);
+    });
+    $stopRecord.click(function() {
+      $(this).hide();
+      mic.disconnect(record);
+      record.disconnect(recordOut);
+    });
+  });
 
-    eventuallyMediaStream.then(function(stream) {
-      mediaStream = stream
-      $("#stopRecord").show()
-      var compressor = ctx.createDynamicsCompressor();
-      compressor.connect(ctx.destination)
 
-      var gain = ctx.createGain()
-      gain.gain.value = 2
-      gain.connect(compressor)
-
-      // tracks management
-      var track = null;
-
-      // get array buffer from stream
-      record = recorder(function(e) {
-        if(!track) {
-          track = Zampling.Track.createFromArrayBuffer(e.array, ctx);
-          player.tracks.add(track);
-        }
-        else {
-          var node = new Zampling.ChunkNode(new Zampling.Chunk(e.array, e.buffer));
-          track.insert(node, track.length());
-        }
-      });
-      record.connect(gain);
-
-      mic = ctx.createMediaStreamSource(stream)
-      mic.connect(record)
-    })
-  })
-
-  // http://typedarray.org/from-microphone-to-wav-with-getusermedia-and-web-audio/
-  function recorder(processingHandler) {
-    var bufferSize = 2048;
-    var processor = ctx.createJavaScriptNode(bufferSize, 1, 1);
-    processor.onaudioprocess = function(e) {
-      var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      var array = new Float32Array(e.inputBuffer.getChannelData(0));
-      buffer.getChannelData(0).set(array);
-      processingHandler({
-        buffer: buffer,
-        array: array
-      });
-    }
-
-    return processor;
-  }
-
-  $("#stopRecord").hide().click(function() {
-    mediaStream.stop();
-    mediaStream = null;
-    mic.disconnect(0);
-    record.disconnect(0);
-    $(this).hide()
-  })
 }());
