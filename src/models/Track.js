@@ -31,8 +31,7 @@ Zampling.Track = Backbone.Model.extend({
   },
 
   toAudioBuffer: function() {
-    var node = this.get("chunks").copy().merge();
-    return node.chunk.audioBuffer;
+    return this.get("chunks").copy().merge().chunk.audioBuffer;
   },
 
   getCursorStartTime: function () {

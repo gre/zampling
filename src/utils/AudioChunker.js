@@ -98,15 +98,6 @@ AudioChunker = function (audioContext) {
       return length;
     },
 
-    find: function (iterator, itctx) {
-      for (var node = this; node; node = node.next) {
-        if (iterator.call(itctx||iterator, node)) {
-          return node;
-        }
-      }
-      return null;
-    },
-
     last: function () {
       var node = this;
       while (node.next) node = node.next;
