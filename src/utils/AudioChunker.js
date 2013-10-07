@@ -1,5 +1,3 @@
-// A chunk represents a portion of an Audio Buffer
-// A Chunk is immutable: all functions returns new chunks and never change the original one.
 
 AudioChunker = function (audioContext) {
   var lib = {};
@@ -13,6 +11,8 @@ AudioChunker = function (audioContext) {
     return head;
   };
 
+  // A chunk represents a portion of an Audio Buffer
+  // A Chunk is immutable: all functions returns new chunks and never change the original one.
   lib.Chunk = function(audioBuffer) {
     this.audioBuffer = audioBuffer;
     this.length = audioBuffer.length;

@@ -67,12 +67,13 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
   /*
   QaudioXHR(ctx, "musics/circus.mp3")
     .then(function (audioBuffer) {
-      return Zampling.Track.createFromArrayBuffer(audioBuffer.getChannelData(0), ctx);
+      return createTrackFromAudioBuffer(audioBuffer, ctx);
     })
     .then(function (track) {
       player.tracks.add(track);
-    });
-    */
+    })
+    .done();
+  */
 
     var buffer;
 
