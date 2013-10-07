@@ -152,10 +152,13 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
   });
 
   player.on("button-download", function () {
-    //var view = Encoder.encodeWAV([buffer.getChannelData(0), buffer.getChannelData(1)]);
-
-    // TODO handle multiple tracks
-    var view = Encoder.encodeWAV([player.tracks.head().toFloat32Array()])
+    var audioBuffer = player.tracks.head().toAudioBuffer();
+    var numberOfChannels = audioBuffer.numberOfChannels;
+    var channels = [];
+    for (var i=0; i<numberOfChannels; ++i) {
+      channels.push(audioBuffer.getChannelData(i));
+    }
+    var view = Encoder.encodeWAV(channels);
 
     var blob = new Blob ( [ view ], { type : 'audio/wav' } );
 

@@ -38,8 +38,8 @@ Zampling.Chunk.prototype = {
 
 Zampling.ChunkNode = function(chunk, nextChunkNode)  {
   this.chunk = chunk;
-  this.next = nextChunkNode;
-}
+  this.next = nextChunkNode || null;
+};
 
 Zampling.ChunkNode.prototype = {
   // Create a full copy of the ChunkNode list
@@ -50,6 +50,11 @@ Zampling.ChunkNode.prototype = {
   // Only clone a node
   clone: function() {
     return new Zampling.ChunkNode(this.chunk, this.next);
+  },
+
+  set: function (chunkNode) {
+    this.chunk = chunkNode.chunk;
+    this.next = chunkNode.next;
   },
 
   forEach: function(f, fcontext) {
@@ -100,10 +105,12 @@ Zampling.ChunkNode.prototype = {
     });
     this.chunk = new Zampling.Chunk(buffer);
     this.next = null;
+    return this;
   },
 
-  mergeAll: function (ctx) {
-    while (this.merge(ctx));
+  append: function (node) {
+    this.last().next = node;
+    return this;
   },
 
   // Split the Chunk list at a given position and return the [left,right] part of the split
@@ -122,8 +129,52 @@ Zampling.ChunkNode.prototype = {
       return this.next.split(at-this.chunk.length, ctx, this);
     }
     else {
-      throw new Error("Invalid split");
+      throw new Error("index out of bound ("+at+")");
     }
+  },
+
+  // Remove a slice of the original chunklist and returns this slice.
+  slice: function (ctx, from, to) {
+    if (typeof from !== "number") throw new Error("from is required");
+    if (!to) to = this.length();
+    var fromChunks = this.split(from, ctx);
+    var toChunks = this.split(to, ctx);
+    var cuttedChunkNode = fromChunks[1].clone();
+    toChunks[0].next = null;
+    fromChunks[1].next = toChunks[1];
+    return cuttedChunkNode;
+  },
+
+  // Preserve the original chunklist and returns a slice.
+  subset: function (ctx, from, to) {
+    if (typeof from !== "number") throw new Error("from is required");
+    if (!to) to = this.length();
+    var fromChunk = this.split(from, ctx)[1];
+    var toChunk = this.split(to, ctx)[1];
+    var clone = fromChunk.clone();
+    var cloneNode = clone;
+    for (var n=fromChunk; n.next && n.next!==toChunk; n=n.next) {
+      cloneNode.next = n.next.clone();
+      cloneNode = cloneNode.next;
+    }
+    cloneNode.next = null;
+    return clone;
+  },
+
+  insert: function (ctx, chunkNodes, at) {
+    var splits = this.split(at, ctx);
+    var before = splits[0];
+    var after = splits[1];
+    var last = chunkNodes.last();
+    if (before) {
+      before.next = chunkNodes;
+      last.next = after;
+    }
+    else {
+      last.next = this.clone();
+      this.set(chunkNodes);
+    }
+    return this;
   }
 }
 

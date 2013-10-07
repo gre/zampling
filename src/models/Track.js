@@ -11,67 +11,29 @@ Zampling.Track = Backbone.Model.extend({
   },
 
   cut: function (from, to) {
-    var chunks = this.get("chunks"), ctx = this.get("ctx");
-    var fromChunks = chunks.split(from, ctx);
-    var toChunks = chunks.split(to, ctx);
-    var cuttedChunkNode = fromChunks[1].clone();
-    toChunks[0].next = null;
-    fromChunks[1].next = toChunks[1];
+    var cuttedChunkNode = this.get("chunks").slice(this.get("ctx"), from, to);
     this._triggerChunksChange();
     return cuttedChunkNode;
   },
 
   copy: function (from, to) {
-    var chunks = this.get("chunks"), ctx = this.get("ctx");
-    var fromChunk = chunks.split(from, ctx)[1];
-    var toChunk = chunks.split(to, ctx)[1];
-    var clone = fromChunk.clone();
-    var cloneNode = clone;
-    for (var n=fromChunk; n.next && n.next!==toChunk; n=n.next) {
-      cloneNode.next = n.next.clone();
-      cloneNode = cloneNode.next;
-    }
-    cloneNode.next = null;
-    return clone;
+    return this.get("chunks").subset(this.get("ctx"), from, to);
   },
 
   insert: function (chunkNodes, at) {
-    var chunks = this.get("chunks"), ctx = this.get("ctx");
-    var splits = chunks.split(at, ctx);
-    var before = splits[0];
-    var after = splits[1];
-    var last = chunkNodes.last();
-    if (before) {
-      before.next = chunkNodes;
-      last.next = after;
-      this._triggerChunksChange();
-    }
-    else {
-      last.next = chunks;
-      this.set("chunks", chunkNodes);
-    }
-  },
-
-  append: function (node) {
-    this.get("chunks").last().next = node;
+    this.get("chunks").insert(this.get("ctx"), chunkNodes, at);
     this._triggerChunksChange();
   },
 
-  toFloat32Array: function() { // FIXME: rename and refactor to a toAudioBuffer
-    var chunk = this.get('chunks');
-    var lengthArray = chunk.length();
-    var result = new Float32Array(lengthArray);
-    var index = 0;
+  append: function (node) {
+    this.get("chunks").append(node);
+    this._triggerChunksChange();
+  },
 
-    while(chunk != undefined) {
-      var samples = chunk.chunk.audioBuffer.getChannelData(0); // FIXME only support left channel
-      // FIXME: we probably can use Float32Array's set function
-      for (var i=0; i < chunk.chunk.audioBuffer.length; i++) {
-        result[index++] = samples[i];
-      }
-      chunk = chunk.next
-    }
-    return result;
+  toAudioBuffer: function() {
+    var ctx = this.get("ctx");
+    var node = this.get("chunks").clone(ctx).merge(ctx);
+    return node.chunk.audioBuffer;
   },
 
   getCursorStartTime: function () {
