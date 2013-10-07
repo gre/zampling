@@ -75,11 +75,8 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
     .done();
   */
 
-    var buffer;
-
   $("input[type='file']").change(function() {
     QaudioFileInput(ctx, this).then(function(buf) {
-      buffer = buf;
       return createTrackFromAudioBuffer(buf);
     })
     .then(function (track) {
@@ -95,7 +92,6 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
   player.tracks.on("add", function (track) {
       track.set("zoom", player.get("zoom"));
   });
-
 
 
   var zoom;
@@ -168,7 +164,7 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
     for (var i=0; i<numberOfChannels; ++i) {
       channels.push(audioBuffer.getChannelData(i));
     }
-    var view = Encoder.encodeWAV(channels);
+    var view = Zampling.Encoder.encodeWAV(channels);
 
     var blob = new Blob ( [ view ], { type : 'audio/wav' } );
 
@@ -190,7 +186,8 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
   eventuallyMicrophone.then(function(mic) {
     $record.removeClass("disabled");
     var record = null;
-    var recordOut = ctx.createGain();
+    var recordOut = ctx.createGain(); // recordOut do nothing but things need to be connected to ctx.destination to work
+    recordOut.gain.value = 0;
     recordOut.connect(ctx.destination);
     $record.click(function() {
         $stopRecord.show();
@@ -211,9 +208,9 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
         mic.connect(record);
     });
     $stopRecord.click(function() {
-      $(this).hide();
       mic.disconnect(record);
       record.disconnect(recordOut);
+      $(this).hide();
     });
   });
 

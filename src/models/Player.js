@@ -36,9 +36,10 @@ Zampling.Player = Backbone.Model.extend({
       var when = -position;
       track.get("chunks").forEach(function(node) {
         var source = this.ctx.createBufferSource()
-        source.buffer = node.chunk.audioBuffer
-        source.connect(this.destination)
-        var duration = node.chunk.audioBuffer.duration;
+        var audioBuffer = node.chunk.getAudioBuffer();
+        source.buffer = audioBuffer;
+        source.connect(this.destination);
+        var duration = audioBuffer.duration;
         var start = when;
         if (when < stopAtPosition) {
           when += duration;

@@ -2,6 +2,8 @@
 AudioChunker = function (audioContext) {
   var lib = {};
 
+  lib.context = audioContext;
+
   lib.DEFAULT_SAMPLES_SIZE = 44100;
   lib.createFromAudioBuffer = function (audioBuffer, samplesSize) {
     if (!audioBuffer || audioBuffer.length === 0) throw "AudioBuffer is empty.";
@@ -19,29 +21,34 @@ AudioChunker = function (audioContext) {
   };
 
   lib.Chunk.prototype = {
+    getAudioBuffer: function () {
+      return this.audioBuffer;
+    },
+
+    forEachChannel: function (f, fcontext) {
+      var numberOfChannels = this.audioBuffer.numberOfChannels;
+      for (var i=0; i<numberOfChannels; ++i)
+        f.call(fcontext||f, this.audioBuffer.getChannelData(i), i);
+    },
+
     clone: function () {
-      var buffer = audioContext.createBuffer(1, this.length, audioContext.sampleRate);
-      var thisArray = this.audioBuffer.getChannelData(0); // FIXME only support left channel
-      var floatArray = buffer.getChannelData(0);
-      floatArray.set(thisArray);
-      return new lib.Chunk(buffer);
+      var buffer = audioContext.createBuffer(this.audioBuffer.numberOfChannels, this.length, audioContext.sampleRate);
+      var clone = new lib.Chunk(buffer);
+      clone.forEachChannel(function (channel, i) {
+        channel.set(this.audioBuffer.getChannelData(i));
+      }, this);
+      return clone;
     },
 
     split: function(at) {
-      var samples = this.audioBuffer.getChannelData(0);
-      var audioBuffer1 = audioContext.createBuffer(1, at, audioContext.sampleRate),
-          audioBuffer2 = audioContext.createBuffer(1, (this.audioBuffer.length - at), audioContext.sampleRate),
-          floatArray1 = audioBuffer1.getChannelData(0),
-          floatArray2 = audioBuffer2.getChannelData(0);
-
-      // FIXME: only doing on left channel
-      floatArray1.set(samples.subarray(0, at));
-      floatArray2.set(samples.subarray(at, samples.length));
-
-      var chunk1 = new lib.Chunk(audioBuffer1),
-          chunk2 = new lib.Chunk(audioBuffer2);
-
-      return [chunk1, chunk2];
+      var numberOfChannels = this.audioBuffer.numberOfChannels;
+      var audioBuffer1 = audioContext.createBuffer(numberOfChannels, at, audioContext.sampleRate);
+      var audioBuffer2 = audioContext.createBuffer(numberOfChannels, (this.length - at), audioContext.sampleRate);
+      this.forEachChannel(function (samples, i) {
+        audioBuffer1.getChannelData(i).set(samples.subarray(0, at));
+        audioBuffer2.getChannelData(i).set(samples.subarray(at, samples.length));
+      });
+      return [new lib.Chunk(audioBuffer1), new lib.Chunk(audioBuffer2)];
     }
   };
 
@@ -108,14 +115,16 @@ AudioChunker = function (audioContext) {
 
     // Merge all next chunks
     merge: function () {
-      var buffer = audioContext.createBuffer(1, this.length(), audioContext.sampleRate);
-      var data = buffer.getChannelData(0);
-      var offset = 0;
-      this.forEach(function (node) {
-        data.set(node.chunk.audioBuffer.getChannelData(0), offset);
-        offset += node.chunk.length;
-      });
-      this.chunk = new lib.Chunk(buffer);
+      var buffer = audioContext.createBuffer(this.chunk.audioBuffer.numberOfChannels, this.length(), audioContext.sampleRate);
+      var chunk = new lib.Chunk(buffer);
+      chunk.forEachChannel(function (channel, i) {
+        var offset = 0;
+        this.forEach(function (node) {
+          channel.set(node.chunk.audioBuffer.getChannelData(i), offset);
+          offset += node.chunk.length;
+        });
+      }, this);
+      this.chunk = chunk;
       this.next = null;
       return this;
     },
@@ -193,29 +202,3 @@ AudioChunker = function (audioContext) {
   return lib;
 };
 
-// Following probably not required anymore
-/*
-Zampling.ChunkNode.prototype.take = function(n) {
-  if(n == 0) return null
-  var clone = this.clone()
-  clone.next = this.next.take(n - 1)
-  return clone
-}
-
-Zampling.ChunkNode.prototype.last = function(node) {
-  if(this.next) this.next.last(node)
-  else this.next = node
-  return this
-}
-
-Zampling.ChunkNode.prototype.reverse = function() {
-  var clone = this.clone()
-  clone.next = null
-  var reversed = clone
-  if(this.next) {
-    reversed = this.next.reverse()
-    reversed.last(clone)
-  }
-  return reversed
-}
-*/

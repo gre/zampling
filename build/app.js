@@ -2,6 +2,8 @@
 AudioChunker = function (audioContext) {
   var lib = {};
 
+  lib.context = audioContext;
+
   lib.DEFAULT_SAMPLES_SIZE = 44100;
   lib.createFromAudioBuffer = function (audioBuffer, samplesSize) {
     if (!audioBuffer || audioBuffer.length === 0) throw "AudioBuffer is empty.";
@@ -19,29 +21,34 @@ AudioChunker = function (audioContext) {
   };
 
   lib.Chunk.prototype = {
+    getAudioBuffer: function () {
+      return this.audioBuffer;
+    },
+
+    forEachChannel: function (f, fcontext) {
+      var numberOfChannels = this.audioBuffer.numberOfChannels;
+      for (var i=0; i<numberOfChannels; ++i)
+        f.call(fcontext||f, this.audioBuffer.getChannelData(i), i);
+    },
+
     clone: function () {
-      var buffer = audioContext.createBuffer(1, this.length, audioContext.sampleRate);
-      var thisArray = this.audioBuffer.getChannelData(0); // FIXME only support left channel
-      var floatArray = buffer.getChannelData(0);
-      floatArray.set(thisArray);
-      return new lib.Chunk(buffer);
+      var buffer = audioContext.createBuffer(this.audioBuffer.numberOfChannels, this.length, audioContext.sampleRate);
+      var clone = new lib.Chunk(buffer);
+      clone.forEachChannel(function (channel, i) {
+        channel.set(this.audioBuffer.getChannelData(i));
+      }, this);
+      return clone;
     },
 
     split: function(at) {
-      var samples = this.audioBuffer.getChannelData(0);
-      var audioBuffer1 = audioContext.createBuffer(1, at, audioContext.sampleRate),
-          audioBuffer2 = audioContext.createBuffer(1, (this.audioBuffer.length - at), audioContext.sampleRate),
-          floatArray1 = audioBuffer1.getChannelData(0),
-          floatArray2 = audioBuffer2.getChannelData(0);
-
-      // FIXME: only doing on left channel
-      floatArray1.set(samples.subarray(0, at));
-      floatArray2.set(samples.subarray(at, samples.length));
-
-      var chunk1 = new lib.Chunk(audioBuffer1),
-          chunk2 = new lib.Chunk(audioBuffer2);
-
-      return [chunk1, chunk2];
+      var numberOfChannels = this.audioBuffer.numberOfChannels;
+      var audioBuffer1 = audioContext.createBuffer(numberOfChannels, at, audioContext.sampleRate);
+      var audioBuffer2 = audioContext.createBuffer(numberOfChannels, (this.length - at), audioContext.sampleRate);
+      this.forEachChannel(function (samples, i) {
+        audioBuffer1.getChannelData(i).set(samples.subarray(0, at));
+        audioBuffer2.getChannelData(i).set(samples.subarray(at, samples.length));
+      });
+      return [new lib.Chunk(audioBuffer1), new lib.Chunk(audioBuffer2)];
     }
   };
 
@@ -108,14 +115,16 @@ AudioChunker = function (audioContext) {
 
     // Merge all next chunks
     merge: function () {
-      var buffer = audioContext.createBuffer(1, this.length(), audioContext.sampleRate);
-      var data = buffer.getChannelData(0);
-      var offset = 0;
-      this.forEach(function (node) {
-        data.set(node.chunk.audioBuffer.getChannelData(0), offset);
-        offset += node.chunk.length;
-      });
-      this.chunk = new lib.Chunk(buffer);
+      var buffer = audioContext.createBuffer(this.chunk.audioBuffer.numberOfChannels, this.length(), audioContext.sampleRate);
+      var chunk = new lib.Chunk(buffer);
+      chunk.forEachChannel(function (channel, i) {
+        var offset = 0;
+        this.forEach(function (node) {
+          channel.set(node.chunk.audioBuffer.getChannelData(i), offset);
+          offset += node.chunk.length;
+        });
+      }, this);
+      this.chunk = chunk;
       this.next = null;
       return this;
     },
@@ -193,36 +202,9 @@ AudioChunker = function (audioContext) {
   return lib;
 };
 
-// Following probably not required anymore
-/*
-Zampling.ChunkNode.prototype.take = function(n) {
-  if(n == 0) return null
-  var clone = this.clone()
-  clone.next = this.next.take(n - 1)
-  return clone
-}
 
-Zampling.ChunkNode.prototype.last = function(node) {
-  if(this.next) this.next.last(node)
-  else this.next = node
-  return this
-}
-
-Zampling.ChunkNode.prototype.reverse = function() {
-  var clone = this.clone()
-  clone.next = null
-  var reversed = clone
-  if(this.next) {
-    reversed = this.next.reverse()
-    reversed.last(clone)
-  }
-  return reversed
-}
-*/
-
-// FIXME namespace
-
-var Encoder = {}
+(function(){
+var Encoder = Zampling.Encoder = {};
 
 Encoder.floatTo16BitPCM = function (output, offset, input) {
   for (var i = 0; i < input.length; i++, offset+=2){
@@ -232,7 +214,6 @@ Encoder.floatTo16BitPCM = function (output, offset, input) {
 }
 
 Encoder.trackFloatTo16BitPCM = function (output, offset, inputTrack) {
-
   for (var i = 0; i < input.length; i++, offset+=2){
     var s = Math.max(-1, Math.min(1, input[i]));
     output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
@@ -306,6 +287,8 @@ Encoder.encodeWAV = function(channelsAudioArray) {
   return EncodeWAV(channelsAudioArray);
 }
 
+}());
+
 function QaudioXHR (ctx, url) {
   var d = Q.defer();
   var request = new XMLHttpRequest();
@@ -334,9 +317,9 @@ function QaudioFileInput (context, fileInput) {
 
 
 
-Zampling.createRecorderNode = function (ctx, giveBuffer) {
-  var bufferSize = 2048;
-  var numberOfChannels = 2;
+Zampling.createRecorderNode = function (ctx, giveBuffer, bufferSize, numberOfChannels) {
+  if (!bufferSize) bufferSize = 4096;
+  if (!numberOfChannels) numberOfChannels = 2;
   var processor = ctx.createJavaScriptNode(bufferSize, numberOfChannels, numberOfChannels);
   processor.onaudioprocess = function(e) {
     var buffer = ctx.createBuffer(numberOfChannels, bufferSize, ctx.sampleRate);
@@ -386,9 +369,10 @@ Zampling.Player = Backbone.Model.extend({
       var when = -position;
       track.get("chunks").forEach(function(node) {
         var source = this.ctx.createBufferSource()
-        source.buffer = node.chunk.audioBuffer
-        source.connect(this.destination)
-        var duration = node.chunk.audioBuffer.duration;
+        var audioBuffer = node.chunk.getAudioBuffer();
+        source.buffer = audioBuffer;
+        source.connect(this.destination);
+        var duration = audioBuffer.duration;
         var start = when;
         if (when < stopAtPosition) {
           when += duration;
@@ -473,19 +457,19 @@ Zampling.Track = Backbone.Model.extend({
     return this.get("cursorendx") / (this.get("zoom") * this.get("sampleRate"));
   },
 
-  getStat: function (from, to) {
+  getStat: function (channel, from, to) {
     var min = Infinity, max = -Infinity;
     var currentChunkI = 0;
     var currentChunkNode = this.get("chunks");
     var currentChunkSize = currentChunkNode.chunk.audioBuffer.length;
-    var currentSamples = currentChunkNode.chunk.audioBuffer.getChannelData(0); // FIXME only on left channel
+    var currentSamples = currentChunkNode.chunk.audioBuffer.getChannelData(channel);
     for (var i = from; i < to; ++i) {
       while (currentChunkNode && i > currentChunkI + currentChunkSize) {
         currentChunkI += currentChunkSize;
         currentChunkNode = currentChunkNode.next;
         if (currentChunkNode) {
           currentChunkSize = currentChunkNode.chunk.audioBuffer.length;
-          currentSamples = currentChunkNode.chunk.audioBuffer.getChannelData(0);
+          currentSamples = currentChunkNode.chunk.audioBuffer.getChannelData(channel);
         }
       }
       if (!currentChunkNode) break;
@@ -671,7 +655,7 @@ Zampling.TrackView = Backbone.View.extend({
     var from = 0;
     if (zoom < 1) {
       for (var x = 0; x < W; ++x) {
-        var stat = this.model.getStat(from, from+samplesPerZoom);
+        var stat = this.model.getStat(0, from, from+samplesPerZoom);
         var yStart = H * (1 - (stat.max + 1)/2);
         var yStop = H * (1 - (stat.min + 1)/2);
         ctx.fillRect(x, yStart, 1, yStop-yStart);
@@ -762,11 +746,8 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
     .done();
   */
 
-    var buffer;
-
   $("input[type='file']").change(function() {
     QaudioFileInput(ctx, this).then(function(buf) {
-      buffer = buf;
       return createTrackFromAudioBuffer(buf);
     })
     .then(function (track) {
@@ -782,7 +763,6 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
   player.tracks.on("add", function (track) {
       track.set("zoom", player.get("zoom"));
   });
-
 
 
   var zoom;
@@ -855,7 +835,7 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
     for (var i=0; i<numberOfChannels; ++i) {
       channels.push(audioBuffer.getChannelData(i));
     }
-    var view = Encoder.encodeWAV(channels);
+    var view = Zampling.Encoder.encodeWAV(channels);
 
     var blob = new Blob ( [ view ], { type : 'audio/wav' } );
 
@@ -877,7 +857,8 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
   eventuallyMicrophone.then(function(mic) {
     $record.removeClass("disabled");
     var record = null;
-    var recordOut = ctx.createGain();
+    var recordOut = ctx.createGain(); // recordOut do nothing but things need to be connected to ctx.destination to work
+    recordOut.gain.value = 0;
     recordOut.connect(ctx.destination);
     $record.click(function() {
         $stopRecord.show();
@@ -898,9 +879,9 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia 
         mic.connect(record);
     });
     $stopRecord.click(function() {
-      $(this).hide();
       mic.disconnect(record);
       record.disconnect(recordOut);
+      $(this).hide();
     });
   });
 

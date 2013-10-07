@@ -95,7 +95,7 @@ Zampling.TrackView = Backbone.View.extend({
     var from = 0;
     if (zoom < 1) {
       for (var x = 0; x < W; ++x) {
-        var stat = this.model.getStat(from, from+samplesPerZoom);
+        var stat = this.model.getStat(0, from, from+samplesPerZoom);
         var yStart = H * (1 - (stat.max + 1)/2);
         var yStop = H * (1 - (stat.min + 1)/2);
         ctx.fillRect(x, yStart, 1, yStop-yStart);

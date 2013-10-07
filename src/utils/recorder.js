@@ -1,7 +1,7 @@
 
-Zampling.createRecorderNode = function (ctx, giveBuffer) {
-  var bufferSize = 2048;
-  var numberOfChannels = 2;
+Zampling.createRecorderNode = function (ctx, giveBuffer, bufferSize, numberOfChannels) {
+  if (!bufferSize) bufferSize = 4096;
+  if (!numberOfChannels) numberOfChannels = 2;
   var processor = ctx.createJavaScriptNode(bufferSize, numberOfChannels, numberOfChannels);
   processor.onaudioprocess = function(e) {
     var buffer = ctx.createBuffer(numberOfChannels, bufferSize, ctx.sampleRate);

@@ -43,19 +43,19 @@ Zampling.Track = Backbone.Model.extend({
     return this.get("cursorendx") / (this.get("zoom") * this.get("sampleRate"));
   },
 
-  getStat: function (from, to) {
+  getStat: function (channel, from, to) {
     var min = Infinity, max = -Infinity;
     var currentChunkI = 0;
     var currentChunkNode = this.get("chunks");
     var currentChunkSize = currentChunkNode.chunk.audioBuffer.length;
-    var currentSamples = currentChunkNode.chunk.audioBuffer.getChannelData(0); // FIXME only on left channel
+    var currentSamples = currentChunkNode.chunk.audioBuffer.getChannelData(channel);
     for (var i = from; i < to; ++i) {
       while (currentChunkNode && i > currentChunkI + currentChunkSize) {
         currentChunkI += currentChunkSize;
         currentChunkNode = currentChunkNode.next;
         if (currentChunkNode) {
           currentChunkSize = currentChunkNode.chunk.audioBuffer.length;
-          currentSamples = currentChunkNode.chunk.audioBuffer.getChannelData(0);
+          currentSamples = currentChunkNode.chunk.audioBuffer.getChannelData(channel);
         }
       }
       if (!currentChunkNode) break;
