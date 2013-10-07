@@ -1,1 +1,908 @@
-function QaudioXHR(a,b){var c=Q.defer(),d=new XMLHttpRequest;return d.open("GET",b,!0),d.responseType="arraybuffer",d.onload=function(){a.decodeAudioData(d.response,c.resolve,c.reject)},d.onerror=c.reject,d.send(),c.promise}function QaudioFileInput(a,b){var c=Q.defer(),d=new FileReader;return d.onload=function(){a.decodeAudioData(this.result,c.resolve,c.reject)},d.onerror=c.reject,d.readAsArrayBuffer(b.files[0]),c.promise}var Encoder={};Encoder.floatTo16BitPCM=function(a,b,c){for(var d=0;d<c.length;d++,b+=2){var e=Math.max(-1,Math.min(1,c[d]));a.setInt16(b,0>e?32768*e:32767*e,!0)}},Encoder.trackFloatTo16BitPCM=function(a,b){for(var c=0;c<input.length;c++,b+=2){var d=Math.max(-1,Math.min(1,input[c]));a.setInt16(b,0>d?32768*d:32767*d,!0)}},Encoder.writeString=function(a,b,c){for(var d=0;d<c.length;d++)a.setUint8(b+d,c.charCodeAt(d))},Encoder.interleave=function(a){for(var b=a.length,c=a[0].length*b,d=new Float32Array(c),e=0,f=0;c>e;){for(var g=0;b>g;g++)d[e++]=a[g][f];f++}return d},Encoder.encodeWAV=function(a){function b(a){var b=Encoder.interleave(a),c=44100,d=new ArrayBuffer(44+2*b.length),e=new DataView(d);return Encoder.writeString(e,0,"RIFF"),e.setUint32(4,32+2*b.length,!0),Encoder.writeString(e,8,"WAVE"),Encoder.writeString(e,12,"fmt "),e.setUint32(16,16,!0),e.setUint16(20,1,!0),e.setUint16(22,a.length,!0),e.setUint32(24,c,!0),e.setUint32(28,4*c,!0),e.setUint16(32,4,!0),e.setUint16(34,16,!0),Encoder.writeString(e,36,"data"),e.setUint32(40,2*b.length,!0),Encoder.floatTo16BitPCM(e,44,b),e}return b(a)},Zampling.Chunk=function(a,b){this.samples=a,this.audioBuffer=b},Zampling.Chunk.prototype.clone=function(a){var b=a.createBuffer(1,this.samples.length,a.sampleRate);return new Zampling.Chunk(b.getChannelData(0),b)},Zampling.Chunk.prototype.split=function(a,b){var c=b.createBuffer(1,a,b.sampleRate),d=b.createBuffer(1,this.samples.length-a,b.sampleRate),e=c.getChannelData(0),f=d.getChannelData(0);e.set(this.samples.subarray(0,a)),f.set(this.samples.subarray(a,this.samples.length));var g=new Zampling.Chunk(e,c),h=new Zampling.Chunk(f,d);return[g,h]},Zampling.ChunkNode=function(a,b){this.chunk=a,this.next=b},Zampling.ChunkNode.prototype.clone=function(){return new Zampling.ChunkNode(this.chunk,this.next)},Zampling.ChunkNode.prototype.forEach=function(a,b){a.call(b,this),this.next&&this.next.forEach(a,b)},Zampling.ChunkNode.prototype.take=function(a){if(0==a)return null;var b=this.clone();return b.next=this.next.take(a-1),b},Zampling.ChunkNode.prototype.last=function(a){return this.next?this.next.last(a):this.next=a,this},Zampling.ChunkNode.prototype.reverse=function(){var a=this.clone();a.next=null;var b=a;return this.next&&(b=this.next.reverse(),b.last(a)),b},Zampling.ChunkNode.prototype.split=function(a,b){var c=this.chunk.split(a,b),d=new Zampling.ChunkNode(c[1],this.next);return this.chunk=c[0],this.next=d,this},Zampling.Player=Backbone.Model.extend({defaults:{playing:!1},initialize:function(){this.ctx=new(window.webkitAudioContext||window.AudioContext);var a=this.ctx.createDynamicsCompressor();a.connect(this.ctx.destination),this.destination=a;var b=this.ctx.createGain();b.gain.value=1,b.connect(a),this.tracks=new Zampling.Tracks,this.sources=[],this.triggerPlaying=_.bind(this._triggerPlaying,this),this.set("playing",!1)},_triggerPlaying:function(){this.trigger("playing",this.ctx.currentTime-this.get("playStartAt")+this.get("playPosition"))},play:function(a,b){if(a||(a=0),b||(b=1/0),!this.get("playing")){this.set("playing",!0),this.set("playPosition",a);var c=this.ctx.currentTime;this.set("playStartAt",c),this.trigger("playing",this.ctx.currentTime-this.get("playStartAt")+this.get("playPosition"));var d=-1/0;this.tracks.each(function(e){var f=-a;e.get("chunks").forEach(function(a){var e=this.ctx.createBufferSource();e.buffer=a.chunk.audioBuffer,e.connect(this.destination);var g=a.chunk.audioBuffer.duration,h=f;if(b>f&&(f+=g,f>0)){var i=Math.max(0,g-f),j=Math.min(g,b-f);e.start(c+h,i,j),d=Math.max(h+j,d),this.sources.push(e)}},this)},this),playendPromise=Q.delay(1e3*d),playendPromise.then(_.bind(this.stop,this)),setInterval(this.triggerPlaying,100),this.trigger("play",playendPromise)}},stop:function(){this.get("playing")&&(this.sources.forEach(function(a){a.stop(0)}),this.sources=[],clearInterval(this.triggerPlaying),this.set("playing",!1),this.trigger("stop"))}}),Zampling.Track=Backbone.Model.extend({defaults:{width:600,height:100,zoom:.01,scrollX:0},initialize:function(){},getCursorStartTime:function(){return this.get("cursorstartx")/(this.get("zoom")*this.get("ctx").sampleRate)},getCursorEndTime:function(){return this.get("cursorendx")/(this.get("zoom")*this.get("ctx").sampleRate)},getStat:function(a,b){for(var c=1/0,d=-1/0,e=0,f=this.get("chunks"),g=f.chunk.samples.length,h=a;b>h;++h){for(;f&&h>e+g;)e+=g,f=f.next,f&&(g=f.chunk.samples.length);if(!f)break;var i=f.chunk.samples[h-e];c>i&&(c=i),i>d&&(d=i)}return{min:c,max:d}},cut:function(a,b){var c,d=this.get("chunks"),e=d.chunk.samples.length;for(c=e;a>c;c+=e)d=d.next,e=d.chunk.samples.length;0!==c-a&&(d=d.split(e-(c-a),this.get("ctx")));var f,g=d.next,h=g,i=h.chunk.samples.length,j=b-a;for(f=i;j>f;f+=i)h=h.next,i=h.chunk.samples.length;return 0===f-j?(d.next=h.next,h.next=null):(h=h.split(i-(f-j),this.get("ctx")),d.next=h.next,h.next=null),this.trigger("change:chunks",this,this.get("chunks")),g},insert:function(a,b){var c,d=this.get("chunks"),e=d.chunk.samples.length;for(c=e;b>c;c+=e)d=d.next,e=d.chunk.samples.length;c!=b&&(d=d.split(e-(c-b),this.get("ctx")));for(var f=a;f.next;)f=f.next;f.next=d.next,d.next=a,this.trigger("change:chunks",this,this.get("chunks"))},copy:function(){throw"Not Implemented"},length:function(){for(var a=0,b=this.get("chunks");void 0!=b;)a+=b.chunk.samples.length,b=b.next;return a},toFloat32Array:function(){for(var a=this.length(),b=this.get("chunks"),c=new Float32Array(a),d=0;void 0!=b;){for(var e=0;e<b.chunk.samples.length;e++)c[d++]=b.chunk.samples[e];b=b.next}return c}},{DEFAULT_SAMPLES_SIZE:44100,createFromArrayBuffer:function(a,b,c){if(!a||0===a.length)throw"float32ArrayBuffer is empty.";c||(c=Zampling.Track.DEFAULT_SAMPLES_SIZE);for(var d=a.length,e=[],f=0;d>f;f+=c){var g=Math.min(d-f,c),h=b.createBuffer(1,g,b.sampleRate),i=h.getChannelData(0);i.set(a.subarray(f,f+g));var j=new Zampling.Chunk(i,h);e.push(j)}var k=_.reduceRight(e,function(a,b){return new Zampling.ChunkNode(b,a)},null);return new Zampling.Track({chunks:k,ctx:b})}}),Zampling.Tracks=Backbone.Collection.extend({model:Zampling.Track}),Zampling.ControlsView=Backbone.View.extend({initialize:function(){this.$div=$('<div class="blue ui buttons" style="margin:10px"></div>'),this.$play=$('<div class="ui icon button play"><i class="play icon"></i></div>'),this.$stop=$('<div class="ui icon button stop"><i class="stop icon"></i></div>'),this.$export=$('<div class="ui right labeled icon button download green"><i class="right download disk icon"></i>Download</div>'),this.$zoomin=$('<div class="zoomin ui icon button"><i class="zoom in icon"></i></div>'),this.$zoomDiv=$('<div class="blue ui buttons" style="margin:10px"></div>'),this.$zoomout=$('<div class="zoomout ui icon button"><i class="zoom out icon"></i></div>'),this.$opDiv=$('<div class="blue ui buttons" style="margin:10px"></div>'),this.$cut=$('<div class="cut ui icon button"><i class="cut icon"></i></div>'),this.$paste=$('<div class="paste ui icon button"><i class="paste icon"></i></div>'),this.$div.append(this.$play),this.$div.append(this.$stop),this.$el.append(this.$div),this.$el.append(this.$export),this.$zoomDiv.append(this.$zoomin),this.$zoomDiv.append(this.$zoomout),this.$el.append(this.$zoomDiv),this.$opDiv.append(this.$cut),this.$opDiv.append(this.$paste),this.$el.append(this.$opDiv)},events:{"click .play":"onPlay","click .stop":"onStop","click .download":"onDownload","click .zoomin":"onZoomIn","click .zoomout":"onZoomOut","click .cut":"onCut","click .paste":"onPaste"},onPlay:function(){this.model.trigger("button-play")},onStop:function(){this.model.trigger("button-stop")},onDownload:function(){this.model.trigger("button-download")},onZoomIn:function(){this.model.trigger("button-zoomin")},onZoomOut:function(){this.model.trigger("button-zoomout")},onCut:function(){this.model.trigger("button-cut")},onPaste:function(){this.model.trigger("button-paste")}}),Zampling.TrackView=Backbone.View.extend({className:"track",initialize:function(){this.MIN_DELTA=8,this.canvas=document.createElement("canvas"),this.ctx=this.canvas.getContext("2d"),this.$cursor=$('<div class="cursor"></div>'),this.$selection=$('<div class="selection"></div>'),this.listenTo(this.model,"change:width change:height",this.syncSize),this.listenTo(this.model,"change:zoom",this.render),this.listenTo(this.model,"change:chunks",this.render),this.listenTo(this.model,"change:cursorstartx change:cursorendx",this.syncCursor),this.listenTo(this.model,"change:cursormode",this.syncCursorMode),this.$el.append(this.canvas),this.$el.append(this.$cursor),this.$el.append(this.$selection),this.syncSize()},events:{mousedown:"onMouseDown",mouseup:"onMouseUp",mousemove:"onMouseMove"},onMouseDown:function(a){a.preventDefault();var b=a.clientX-this.canvas.getBoundingClientRect().left;this.model.set({cursormode:"cursor",cursorstartx:b,cursorendx:null,moving:!0})},onMouseUp:function(a){var b=a.clientX-this.canvas.getBoundingClientRect().left;this.model.set({cursorendx:b,moving:!1})},onMouseMove:function(a){if(this.model.get("moving")){var b=a.clientX-this.canvas.getBoundingClientRect().left;this.model.set("cursorendx",b)}},syncCursorMode:function(){var a=this.model.get("cursormode");"cursor"==a?(this.$cursor.show(),this.$selection.hide()):"selection"==a&&(this.$selection.show(),this.$cursor.hide())},syncCursor:function(){var a=this.model.get("cursorstartx"),b=this.model.get("cursorendx");Math.abs(a-b)<this.MIN_DELTA?(this.model.set("cursormode","cursor"),this.$cursor.css({left:Math.round(a)+"px"})):(this.model.set("cursormode","selection"),this.$selection.css({left:Math.round(a)+"px",width:Math.round(b-a)+"px"}))},syncSize:function(){var a=this.model.get("width"),b=this.model.get("height"),c=window.devicePixelRatio||1;this.canvas.width=c*a,this.canvas.height=c*b,this.canvas.style.width=a+"px",this.canvas.style.height=b+"px",this.render()},render:function(){var a=this.ctx,b=a.canvas.width,c=a.canvas.height,d=window.devicePixelRatio||1,e=this.model.get("zoom"),f=Math.floor(1/(e*d));a.clearRect(0,0,a.canvas.width,a.canvas.height),a.fillStyle="#6ECFF5";var g=0;if(!(1>e))throw"zoom level >= 1, Not Implemented";for(var h=0;b>h;++h){var i=this.model.getStat(g,g+f),j=c*(1-(i.max+1)/2),k=c*(1-(i.min+1)/2);a.fillRect(h,j,1,k-j),g+=f}}}),navigator.getUserMedia=navigator.getUserMedia||navigator.webkitGetUserMedia||navigator.mozGetUserMedia||navigator.msGetUserMedia,function(){function a(a){var b=2048,d=c.createJavaScriptNode(b,1,1);return d.onaudioprocess=function(d){var e=c.createBuffer(1,b,c.sampleRate),f=new Float32Array(d.inputBuffer.getChannelData(0));e.getChannelData(0).set(f),a({buffer:e,array:f})},d}var b=$("#tracks"),c=new(window.webkitAudioContext||window.AudioContext),d=new Zampling.Player;new Zampling.ControlsView({model:d,el:$("#controls")}),d.tracks.on("add",function(a){var c=new Zampling.TrackView({model:a});c.$el.appendTo(b),a.on("change:cursormode",function(){d.set("currentTrack",a)})});var e=$('<div class="play-cursor" />');e.hide(),b.append(e),d.on("play",function(){e.show()}),d.on("stop",function(){e.hide()}),d.on("playing",function(a){var b=Math.round(a*c.sampleRate*d.get("zoom"));e.css("left",b+"px")});var f;$("input[type='file']").change(function(){QaudioFileInput(c,this).then(function(a){return f=a,Zampling.Track.createFromArrayBuffer(a.getChannelData(0),c)}).then(function(a){d.tracks.add(a)})}),d.on("change:zoom",function(a,b){d.tracks.each(function(a){a.set("zoom",b)})}),d.tracks.on("add",function(a){a.set("zoom",d.get("zoom"))});var g,h=1.5;d.set("zoom",g=.001),d.on("button-zoomin",function(){var a=g*h;1>a&&this.set("zoom",g=a)}),d.on("button-zoomout",function(){var a=g/h;this.set("zoom",g=a)});var i;d.on("button-cut",function(){var a=d.get("currentTrack"),b=a.getCursorStartTime(),e=a.getCursorEndTime();i=a.cut(Math.round(b*c.sampleRate),Math.round(e*c.sampleRate))}),d.on("button-paste",function(){if(i){var a=d.get("currentTrack"),b=a.getCursorStartTime();a.insert(i,Math.round(b*c.sampleRate)),i=null}}),d.on("button-play",function(){var a=d.get("currentTrack");if(a){var b=a.get("cursormode"),c=a.getCursorStartTime(),e=a.getCursorEndTime();"cursor"===b?d.play(c):d.play(c,e)}else d.play()}),d.on("button-stop",function(){d.stop()}),d.on("button-download",function(){var a=Encoder.encodeWAV([d.tracks.head().toFloat32Array()]),b=new Blob([a],{type:"audio/wav"}),c=URL.createObjectURL(b),e=document.createElement("a");e.href=c,e.download=(new Date).toISOString()+".wav",e.innerHTML=e.download;var f=document.createEvent("Event");f.initEvent("click",!0,!0),e.dispatchEvent(f)});var j=function(a){return navigator.getUserMedia({audio:!0},a.resolve,a.reject),a.promise}(Q.defer()),k=null,l=null,m=null;$("#record").click(function(){j.then(function(b){k=b,$("#stopRecord").show();var e=c.createDynamicsCompressor();e.connect(c.destination);var f=c.createGain();f.gain.value=2,f.connect(e);var g=null;m=a(function(a){if(g){var b=new Zampling.ChunkNode(new Zampling.Chunk(a.array,a.buffer));g.insert(b,g.length())}else g=Zampling.Track.createFromArrayBuffer(a.array,c),d.tracks.add(g)}),m.connect(f),l=c.createMediaStreamSource(b),l.connect(m)})}),$("#stopRecord").hide().click(function(){k.stop(),k=null,l.disconnect(0),m.disconnect(0),$(this).hide()})}();
+
+AudioChunker = function (audioContext) {
+  var lib = {};
+
+  lib.DEFAULT_SAMPLES_SIZE = 44100;
+  lib.createFromAudioBuffer = function (audioBuffer, samplesSize) {
+    if (!audioBuffer || audioBuffer.length === 0) throw "AudioBuffer is empty.";
+    if (!samplesSize) samplesSize = lib.DEFAULT_SAMPLES_SIZE;
+    var head = new lib.ChunkNode(new lib.Chunk(audioBuffer), null);
+    for (var n=head; n.chunk.length > samplesSize; n = n.split(samplesSize)[1]);
+    return head;
+  };
+
+  // A chunk represents a portion of an Audio Buffer
+  // A Chunk is immutable: all functions returns new chunks and never change the original one.
+  lib.Chunk = function(audioBuffer) {
+    this.audioBuffer = audioBuffer;
+    this.length = audioBuffer.length;
+  };
+
+  lib.Chunk.prototype = {
+    clone: function () {
+      var buffer = audioContext.createBuffer(1, this.length, audioContext.sampleRate);
+      var thisArray = this.audioBuffer.getChannelData(0); // FIXME only support left channel
+      var floatArray = buffer.getChannelData(0);
+      floatArray.set(thisArray);
+      return new lib.Chunk(buffer);
+    },
+
+    split: function(at) {
+      var samples = this.audioBuffer.getChannelData(0);
+      var audioBuffer1 = audioContext.createBuffer(1, at, audioContext.sampleRate),
+          audioBuffer2 = audioContext.createBuffer(1, (this.audioBuffer.length - at), audioContext.sampleRate),
+          floatArray1 = audioBuffer1.getChannelData(0),
+          floatArray2 = audioBuffer2.getChannelData(0);
+
+      // FIXME: only doing on left channel
+      floatArray1.set(samples.subarray(0, at));
+      floatArray2.set(samples.subarray(at, samples.length));
+
+      var chunk1 = new lib.Chunk(audioBuffer1),
+          chunk2 = new lib.Chunk(audioBuffer2);
+
+      return [chunk1, chunk2];
+    }
+  };
+
+  // A ChunkNode represents a Chained list of chunk
+  // A ChunkNode is mutable: functions will transform the existing structure. Use clone() to copy it.
+
+  lib.ChunkNode = function(chunk, nextChunkNode)  {
+    this.chunk = chunk;
+    this.next = nextChunkNode || null;
+  };
+
+  lib.ChunkNode.prototype = {
+    // Create a full copy of the ChunkNode list
+    copy: function () {
+      return new lib.ChunkNode(this.chunk.clone(), this.next ? this.next.copy() : null);
+    },
+
+    // Only clone a node
+    clone: function() {
+      return new lib.ChunkNode(this.chunk, this.next);
+    },
+
+    set: function (chunkNode) {
+      this.chunk = chunkNode.chunk;
+      this.next = chunkNode.next;
+    },
+
+    forEach: function(f, fcontext) {
+      for (var node = this; node; node = node.next) {
+        f.call(fcontext||f, node);
+      }
+    },
+
+    map: function(f, fcontext) {
+      var t = [];
+      for (var node = this; node; node = node.next) {
+        t.push(f.call(fcontext||f, node));
+      }
+      return t;
+    },
+
+    length: function () {
+      var length = 0;
+      this.forEach(function(node) {
+        length += node.chunk.length;
+      });
+      return length;
+    },
+
+    find: function (iterator, itctx) {
+      for (var node = this; node; node = node.next) {
+        if (iterator.call(itctx||iterator, node)) {
+          return node;
+        }
+      }
+      return null;
+    },
+
+    last: function () {
+      var node = this;
+      while (node.next) node = node.next;
+      return node;
+    },
+
+    // Merge all next chunks
+    merge: function () {
+      var buffer = audioContext.createBuffer(1, this.length(), audioContext.sampleRate);
+      var data = buffer.getChannelData(0);
+      var offset = 0;
+      this.forEach(function (node) {
+        data.set(node.chunk.audioBuffer.getChannelData(0), offset);
+        offset += node.chunk.length;
+      });
+      this.chunk = new lib.Chunk(buffer);
+      this.next = null;
+      return this;
+    },
+
+    append: function (node) {
+      this.last().next = node;
+      return this;
+    },
+
+    // Split the Chunk list at a given position and return the [left,right] part of the split
+    split: function (at, prevNode) {
+      if (at === 0) {
+        return [prevNode||null, this];
+      }
+      else if (at < this.chunk.length) {
+        var chunks = this.chunk.split(at),
+            chunkNode = new lib.ChunkNode(chunks[1], this.next);
+        this.chunk = chunks[0],
+        this.next = chunkNode;
+        return [this, chunkNode];
+      }
+      else if (this.chunk.length <= at && this.next) {
+        return this.next.split(at-this.chunk.length, this);
+      }
+      else {
+        throw new Error("index out of bound ("+at+")");
+      }
+    },
+
+    // Remove a slice of the original chunklist and returns this slice.
+    slice: function (from, to) {
+      if (typeof from !== "number") throw new Error("from is required");
+      if (!to) to = this.length();
+      var fromChunks = this.split(from);
+      var toChunks = this.split(to);
+      var cuttedChunkNode = fromChunks[1].clone();
+      toChunks[0].next = null;
+      fromChunks[1].next = toChunks[1];
+      return cuttedChunkNode;
+    },
+
+    // Preserve the original chunklist and returns a slice.
+    subset: function (from, to) {
+      if (typeof from !== "number") throw new Error("from is required");
+      if (!to) to = this.length();
+      var fromChunk = this.split(from)[1];
+      var toChunk = this.split(to)[1];
+      var clone = fromChunk.clone();
+      var cloneNode = clone;
+      for (var n=fromChunk; n.next && n.next!==toChunk; n=n.next) {
+        cloneNode.next = n.next.clone();
+        cloneNode = cloneNode.next;
+      }
+      cloneNode.next = null;
+      return clone;
+    },
+
+    insert: function (chunkNodes, at) {
+      var splits = this.split(at);
+      var before = splits[0];
+      var after = splits[1];
+      var last = chunkNodes.last();
+      if (before) {
+        before.next = chunkNodes;
+        last.next = after;
+      }
+      else {
+        last.next = this.clone();
+        this.set(chunkNodes);
+      }
+      return this;
+    }
+  }
+
+  return lib;
+};
+
+// Following probably not required anymore
+/*
+Zampling.ChunkNode.prototype.take = function(n) {
+  if(n == 0) return null
+  var clone = this.clone()
+  clone.next = this.next.take(n - 1)
+  return clone
+}
+
+Zampling.ChunkNode.prototype.last = function(node) {
+  if(this.next) this.next.last(node)
+  else this.next = node
+  return this
+}
+
+Zampling.ChunkNode.prototype.reverse = function() {
+  var clone = this.clone()
+  clone.next = null
+  var reversed = clone
+  if(this.next) {
+    reversed = this.next.reverse()
+    reversed.last(clone)
+  }
+  return reversed
+}
+*/
+
+// FIXME namespace
+
+var Encoder = {}
+
+Encoder.floatTo16BitPCM = function (output, offset, input) {
+  for (var i = 0; i < input.length; i++, offset+=2){
+    var s = Math.max(-1, Math.min(1, input[i]));
+    output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+}
+
+Encoder.trackFloatTo16BitPCM = function (output, offset, inputTrack) {
+
+  for (var i = 0; i < input.length; i++, offset+=2){
+    var s = Math.max(-1, Math.min(1, input[i]));
+    output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+}
+
+Encoder.writeString = function (view, offset, string){
+  for (var i = 0; i < string.length; i++){
+    view.setUint8(offset + i, string.charCodeAt(i));
+  }
+}
+
+Encoder.interleave = function (channelsAudioArray) {
+  var lengthChannels = channelsAudioArray.length
+  var length = channelsAudioArray[0].length * lengthChannels
+  var result = new Float32Array(length);
+
+  var index = 0,
+    inputIndex = 0;
+  
+  while (index < length){
+    for (var i=0; i < lengthChannels; i++) {
+      result[index++] = channelsAudioArray[i][inputIndex]
+    }
+    inputIndex++;
+  }
+  return result;
+}
+
+Encoder.encodeWAV = function(channelsAudioArray) {
+
+  function EncodeWAV(channelsAudioArray) {
+    var samples = Encoder.interleave(channelsAudioArray)
+    var sampleRate = 44100;
+  
+    var buffer = new ArrayBuffer(44 + samples.length * 2);
+    var view = new DataView(buffer);
+  
+    /* RIFF identifier */
+    Encoder.writeString(view, 0, 'RIFF');
+    /* file length */
+    view.setUint32(4, 32 + samples.length * 2, true);
+    /* RIFF type */
+    Encoder.writeString(view, 8, 'WAVE');
+    /* format chunk identifier */
+    Encoder.writeString(view, 12, 'fmt ');
+    /* format chunk length */
+    view.setUint32(16, 16, true);
+    /* sample format (raw) */
+    view.setUint16(20, 1, true);
+    /* channel count */
+    view.setUint16(22, channelsAudioArray.length, true);
+    /* sample rate */
+    view.setUint32(24, sampleRate, true);
+    /* byte rate (sample rate * block align) */
+    view.setUint32(28, sampleRate * 4, true);
+    /* block align (channel count * bytes per sample) */
+    view.setUint16(32, 4, true);
+    /* bits per sample */
+    view.setUint16(34, 16, true);
+    /* data chunk identifier */
+    Encoder.writeString(view, 36, 'data');
+    /* data chunk length */
+    view.setUint32(40, samples.length * 2, true);
+  
+    Encoder.floatTo16BitPCM(view, 44, samples);
+  
+    return view;
+  }
+
+  return EncodeWAV(channelsAudioArray);
+}
+
+function QaudioXHR (ctx, url) {
+  var d = Q.defer();
+  var request = new XMLHttpRequest();
+  request.open('GET', url, true);
+  request.responseType = 'arraybuffer';
+
+  request.onload = function() {
+    ctx.decodeAudioData(request.response, d.resolve, d.reject);
+  };
+  request.onerror = d.reject;
+  request.send();
+  return d.promise;
+}
+
+function QaudioFileInput (context, fileInput) {
+  var d = Q.defer();
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    context.decodeAudioData(this.result, d.resolve, d.reject);
+  };
+  reader.onerror = d.reject;
+  reader.readAsArrayBuffer(fileInput.files[0]);
+  return d.promise;
+}
+
+
+
+
+Zampling.createRecorderNode = function (ctx, giveBuffer) {
+  var bufferSize = 2048;
+  var numberOfChannels = 2;
+  var processor = ctx.createJavaScriptNode(bufferSize, numberOfChannels, numberOfChannels);
+  processor.onaudioprocess = function(e) {
+    var buffer = ctx.createBuffer(numberOfChannels, bufferSize, ctx.sampleRate);
+    for (var i=0; i<numberOfChannels; ++i) {
+      buffer.getChannelData(i).set(new Float32Array(e.inputBuffer.getChannelData(i)));
+    }
+    giveBuffer(buffer);
+  };
+  return processor;
+}
+
+Zampling.Player = Backbone.Model.extend({
+  defaults: {
+    playing: false
+  },
+  initialize: function() {
+    this.ctx = new (window.webkitAudioContext || window.AudioContext)();
+
+    var compressor = this.ctx.createDynamicsCompressor();
+    compressor.connect(this.ctx.destination)
+    this.destination = compressor
+
+    var gain = this.ctx.createGain()
+    gain.gain.value = 1
+    gain.connect(compressor)
+
+    this.tracks = new Zampling.Tracks();
+    this.sources = [];
+
+    this.triggerPlaying = _.bind(this._triggerPlaying, this);
+    this.set("playing", false);
+  },
+  _triggerPlaying: function () {
+    this.trigger("playing", this.ctx.currentTime-this.get("playStartAt")+this.get("playPosition"));
+  },
+  play: function (position, stopAtPosition) {
+    if (!position) position = 0;
+    if (!stopAtPosition) stopAtPosition = Infinity;
+    if (this.get("playing")) return;
+    this.set("playing", true);
+    this.set("playPosition", position);
+    var currentTime = this.ctx.currentTime;
+    this.set("playStartAt", currentTime);
+    this.trigger("playing", this.ctx.currentTime-this.get("playStartAt")+this.get("playPosition"));
+    var maxDuration = -Infinity;
+    this.tracks.each(function (track) {
+      var when = -position;
+      track.get("chunks").forEach(function(node) {
+        var source = this.ctx.createBufferSource()
+        source.buffer = node.chunk.audioBuffer
+        source.connect(this.destination)
+        var duration = node.chunk.audioBuffer.duration;
+        var start = when;
+        if (when < stopAtPosition) {
+          when += duration;
+          if (when > 0) {
+            var playoffset = Math.max(0, duration - when);
+            var playduration = Math.min(duration, stopAtPosition - when);
+            source.start(currentTime + start, playoffset, playduration);
+            maxDuration = Math.max(start + playduration, maxDuration);
+            this.sources.push(source);
+          }
+        }
+      }, this);
+    }, this);
+    /*
+    var playendPromise = Q.all(_.map(this.sources, function (s) {
+      var d = Q.defer();
+      s.addEventListener("ended", d.resolve);
+      return d.promise;
+    }));
+    playendPromise.then(function() {
+      console.log("done");
+    });
+    */
+    playendPromise = Q.delay(1000 * maxDuration); // FIXME
+
+    playendPromise.then(_.bind(this.stop, this));
+    setInterval(this.triggerPlaying, 100);
+    this.trigger("play", playendPromise);
+  },
+  stop: function () {
+    if (!this.get("playing")) return;
+    this.sources.forEach(function(s) { s.stop(0) });
+    this.sources = [];
+    clearInterval(this.triggerPlaying);
+    this.set("playing", false);
+    this.trigger("stop");
+  }
+});
+
+
+Zampling.Track = Backbone.Model.extend({
+  defaults: {
+    width: 600,
+    height: 100,
+    zoom: 0.01,
+    scrollX: 0
+  },
+
+  initialize: function (opts) {
+  },
+
+  cut: function (from, to) {
+    var cuttedChunkNode = this.get("chunks").slice(from, to);
+    this._triggerChunksChange();
+    return cuttedChunkNode;
+  },
+
+  copy: function (from, to) {
+    return this.get("chunks").subset(from, to);
+  },
+
+  insert: function (chunkNodes, at) {
+    this.get("chunks").insert(chunkNodes, at);
+    this._triggerChunksChange();
+  },
+
+  append: function (node) {
+    this.get("chunks").append(node);
+    this._triggerChunksChange();
+  },
+
+  toAudioBuffer: function() {
+    var node = this.get("chunks").copy().merge();
+    return node.chunk.audioBuffer;
+  },
+
+  getCursorStartTime: function () {
+    return this.get("cursorstartx") / (this.get("zoom") * this.get("sampleRate"));
+  },
+
+  getCursorEndTime: function () {
+    return this.get("cursorendx") / (this.get("zoom") * this.get("sampleRate"));
+  },
+
+  getStat: function (from, to) {
+    var min = Infinity, max = -Infinity;
+    var currentChunkI = 0;
+    var currentChunkNode = this.get("chunks");
+    var currentChunkSize = currentChunkNode.chunk.audioBuffer.length;
+    var currentSamples = currentChunkNode.chunk.audioBuffer.getChannelData(0); // FIXME only on left channel
+    for (var i = from; i < to; ++i) {
+      while (currentChunkNode && i > currentChunkI + currentChunkSize) {
+        currentChunkI += currentChunkSize;
+        currentChunkNode = currentChunkNode.next;
+        if (currentChunkNode) {
+          currentChunkSize = currentChunkNode.chunk.audioBuffer.length;
+          currentSamples = currentChunkNode.chunk.audioBuffer.getChannelData(0);
+        }
+      }
+      if (!currentChunkNode) break;
+      var value = currentSamples[i-currentChunkI];
+      if (value < min) min = value;
+      if (value > max) max = value;
+    }
+    return {
+      min: min,
+      max: max
+    };
+  },
+
+  _triggerChunksChange: function (opts) {
+    this.trigger("change:chunks", this, this.get("chunks"), opts||{});
+    this.trigger("change", this, opts||{});
+  }
+});
+
+Zampling.Tracks = Backbone.Collection.extend({
+  model: Zampling.Track
+});
+
+Zampling.ControlsView = Backbone.View.extend({
+  initialize: function () {
+
+    this.$div = $('<div class="blue ui buttons" style="margin:10px"></div>');
+    this.$play = $('<div class="ui icon button action-play"><i class="play icon"></i></div>');
+    this.$stop = $('<div class="ui icon button action-stop"><i class="stop icon"></i></div>');
+    this.$export = $('<div class="ui right labeled icon button action-download green"><i class="right download disk icon"></i>Download</div>');
+    this.$zoomin = $('<div class="action-zoomin ui icon button"><i class="zoom in icon"></i></div>');
+    this.$zoomDiv = $('<div class="blue ui buttons" style="margin:10px"></div>');
+    this.$zoomout = $('<div class="action-zoomout ui icon button"><i class="zoom out icon"></i></div>');
+
+    this.$opDiv = $('<div class="blue ui buttons" style="margin:10px"></div>');
+    this.$copy = $('<div class="action-copy ui icon button"><i class="copy icon"></i></div>');
+    this.$cut = $('<div class="action-cut ui icon button"><i class="cut icon"></i></div>');
+    this.$paste = $('<div class="action-paste ui icon button"><i class="paste icon"></i></div>');
+
+    this.$div.append(this.$play);
+    this.$div.append(this.$stop);
+    this.$el.append(this.$div);
+    this.$el.append(this.$export);
+    this.$zoomDiv.append(this.$zoomin);
+    this.$zoomDiv.append(this.$zoomout);
+    this.$el.append(this.$zoomDiv);
+    this.$opDiv.append(this.$cut);
+    this.$opDiv.append(this.$copy);
+    this.$opDiv.append(this.$paste);
+    this.$el.append(this.$opDiv);
+  },
+  events: {
+    "click .action-play": "onPlay",
+    "click .action-stop": "onStop",
+    "click .action-download": "onDownload",
+    "click .action-zoomin": "onZoomIn",
+    "click .action-zoomout": "onZoomOut",
+    "click .action-copy": "onCopy",
+    "click .action-cut": "onCut",
+    "click .action-paste": "onPaste"
+  },
+  onPlay: function () {
+    this.model.trigger("button-play");
+  },
+  onStop: function () {
+    this.model.trigger("button-stop");
+  },
+  onDownload: function () {
+    this.model.trigger("button-download");
+  },
+  onZoomIn: function () {
+    this.model.trigger("button-zoomin");
+  },
+  onZoomOut: function () {
+    this.model.trigger("button-zoomout");
+  },
+  onCopy: function () {
+    this.model.trigger("button-copy");
+  },
+  onCut: function () {
+    this.model.trigger("button-cut");
+  },
+  onPaste: function () {
+    this.model.trigger("button-paste");
+  }
+  
+});
+
+Zampling.TrackView = Backbone.View.extend({
+  className: "track",
+  initialize: function (opts) {
+    this.MIN_DELTA = 8;
+    this.canvas = document.createElement("canvas");
+    this.ctx = this.canvas.getContext("2d");
+    this.$cursor = $('<div class="cursor"></div>');
+    this.$selection = $('<div class="selection"></div>');
+    this.listenTo(this.model, "change:width change:height", this.syncSize);
+    this.listenTo(this.model, "change:zoom", this.render);
+    this.listenTo(this.model, "change:chunks", this.render);
+    this.listenTo(this.model, "change:cursorstartx change:cursorendx", this.syncCursor);
+    this.listenTo(this.model, "change:cursormode", this.syncCursorMode);
+
+    this.$el.append(this.canvas);
+    this.$el.append(this.$cursor);
+    this.$el.append(this.$selection);
+
+    this.syncSize();
+  },
+  events: {
+    "mousedown": "onMouseDown",
+    "mouseup": "onMouseUp",
+    "mousemove": "onMouseMove"
+  },
+  onMouseDown: function (e) {
+    e.preventDefault();
+    var x = e.clientX - this.canvas.getBoundingClientRect().left;
+    this.model.set({
+      "cursormode": "cursor",
+      "cursorstartx": x,
+      "cursorendx": null,
+      "moving": true
+    });
+  },
+  onMouseUp: function (e) {
+    var x = e.clientX - this.canvas.getBoundingClientRect().left;
+    this.model.set({
+      "cursorendx": x,
+      "moving": false
+    });
+  },
+  onMouseMove: function (e) {
+    if (!this.model.get("moving")) return;
+    var x = e.clientX - this.canvas.getBoundingClientRect().left;
+    this.model.set("cursorendx", x);
+  },
+  syncCursorMode: function () {
+    var mode = this.model.get("cursormode");
+    if (mode == "cursor") {
+      this.$cursor.show();
+      this.$selection.hide();
+    }
+    else if (mode == "selection") {
+      this.$selection.show();
+      this.$cursor.hide();
+    }
+  },
+  syncCursor: function () {
+    var startx = this.model.get("cursorstartx");
+    var endx = this.model.get("cursorendx");
+    if (Math.abs(startx-endx) < this.MIN_DELTA) {
+      this.model.set("cursormode", "cursor");
+      this.$cursor.css({
+        left: Math.round(startx)+"px"
+      });
+    }
+    else {
+      this.model.set("cursormode", "selection");
+      this.$selection.css({
+        left: Math.round(startx)+"px",
+        width: Math.round(endx-startx)+"px"
+      });
+    }
+  },
+  syncSize: function () {
+    var W = this.model.get("width");
+    var H = this.model.get("height");
+    var dpr = window.devicePixelRatio || 1;
+    this.canvas.width = dpr * W;
+    this.canvas.height = dpr * H;
+    this.canvas.style.width = W+"px";
+    this.canvas.style.height = H+"px";
+    this.render();
+  },
+  render: function () {
+    var ctx = this.ctx;
+    var W = ctx.canvas.width;
+    var H = ctx.canvas.height;
+    var dpr = window.devicePixelRatio || 1;
+    var zoom = this.model.get("zoom");
+    var samplesPerZoom = Math.floor(1 / (zoom*dpr));
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.fillStyle = "#6ECFF5";
+    var from = 0;
+    if (zoom < 1) {
+      for (var x = 0; x < W; ++x) {
+        var stat = this.model.getStat(from, from+samplesPerZoom);
+        var yStart = H * (1 - (stat.max + 1)/2);
+        var yStop = H * (1 - (stat.min + 1)/2);
+        ctx.fillRect(x, yStart, 1, yStop-yStart);
+        from += samplesPerZoom;
+      }
+    }
+    else {
+      // TODO: other viz mode!
+      throw "zoom level >= 1, Not Implemented";
+    }
+  }
+});
+
+// polyfill
+navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+
+(function () {
+  var $record = $("#record");
+  var $stopRecord = $("#stopRecord");
+  var $tracks = $("#tracks");
+
+  var ctx = new (window.webkitAudioContext || window.AudioContext)();
+  var audioChunker = new AudioChunker(ctx);
+
+  var eventuallyMediaStream = (function(d) {
+    navigator.getUserMedia({ audio: true }, d.resolve, d.reject);
+    return d.promise;
+  } (Q.defer()));
+
+  var eventuallyMicrophone = eventuallyMediaStream.then(function (mediaStream) {
+    var mic = ctx.createMediaStreamSource(mediaStream);
+    var gain = ctx.createGain();
+    var compressor = ctx.createDynamicsCompressor();
+    gain.gain.value = 4;
+    mic.connect(gain);
+    gain.connect(compressor);
+    return compressor;
+  });
+
+  function createTrackFromAudioBuffer (audioBuffer) {
+    var chunks = audioChunker.createFromAudioBuffer(audioBuffer);
+    return new Zampling.Track({
+      sampleRate: ctx.sampleRate,
+      chunks: chunks
+    });
+  };
+
+  var player = new Zampling.Player();
+
+  var controlView = new Zampling.ControlsView({
+    model: player,
+    el: $('#controls')
+  });
+
+  player.tracks.on("add", function (track) {
+    var trackView = new Zampling.TrackView({
+      model: track
+    });
+    trackView.$el.appendTo($tracks);
+    track.on("change:cursormode", function () {
+      player.set("currentTrack", track);
+    });
+  });
+
+  var $playCursor = $('<div class="play-cursor" />');
+  $playCursor.hide();
+  $tracks.append($playCursor);
+
+  player.on("play", function () {
+    $playCursor.show();
+  });
+  player.on("stop", function () {
+    $playCursor.hide();
+  });
+  player.on("playing", function (t) {
+    var x = Math.round(t*ctx.sampleRate*player.get("zoom"));
+    $playCursor.css("left", x+"px");
+  });
+
+  /*
+  QaudioXHR(ctx, "musics/circus.mp3")
+    .then(function (audioBuffer) {
+      return createTrackFromAudioBuffer(audioBuffer, ctx);
+    })
+    .then(function (track) {
+      player.tracks.add(track);
+    })
+    .done();
+  */
+
+    var buffer;
+
+  $("input[type='file']").change(function() {
+    QaudioFileInput(ctx, this).then(function(buf) {
+      buffer = buf;
+      return createTrackFromAudioBuffer(buf);
+    })
+    .then(function (track) {
+      player.tracks.add(track);
+    });
+  });
+
+  player.on("change:zoom", function (m, zoom) {
+    player.tracks.each(function (track) {
+      track.set("zoom", zoom);
+    });
+  });
+  player.tracks.on("add", function (track) {
+      track.set("zoom", player.get("zoom"));
+  });
+
+
+
+  var zoom;
+  var zoomMult = 1.5;
+  player.set("zoom", zoom = 0.001);
+  player.on("button-zoomin", function () {
+    var z = zoom * zoomMult;
+    if (z < 1) {
+      this.set("zoom", zoom = z);
+    }
+  });
+
+  player.on("button-zoomout", function () {
+    var z = zoom / zoomMult;
+    this.set("zoom", zoom = z);
+  });
+
+
+  var clipboard;
+
+  player.on("button-copy", function () {
+    var track = player.get("currentTrack");
+    var start = track.getCursorStartTime();
+    var end = track.getCursorEndTime();
+    clipboard = track.copy(Math.round(start*ctx.sampleRate), Math.round(end*ctx.sampleRate));
+  });
+
+  player.on("button-cut", function () {
+    var track = player.get("currentTrack");
+    var start = track.getCursorStartTime();
+    var end = track.getCursorEndTime();
+    clipboard = track.cut(Math.round(start*ctx.sampleRate), Math.round(end*ctx.sampleRate));
+  });
+
+  player.on("button-paste", function () {
+    if (clipboard) {
+      var track = player.get("currentTrack");
+      var start = track.getCursorStartTime();
+      var data = clipboard.copy(ctx);
+      track.insert(data, Math.round(start*ctx.sampleRate));
+    }
+  });
+  
+  player.on("button-play", function () {
+    var track = player.get("currentTrack");
+    if (!track) {
+      player.play();
+    }
+    else {
+      var mode = track.get("cursormode");
+      var start = track.getCursorStartTime();
+      var end = track.getCursorEndTime();
+      if (mode === "cursor") {
+        player.play(start);
+      }
+      else {
+        player.play(start, end);
+      }
+    }
+  });
+
+  player.on("button-stop", function () {
+    player.stop();
+  });
+
+  player.on("button-download", function () {
+    var audioBuffer = player.tracks.head().toAudioBuffer();
+    var numberOfChannels = audioBuffer.numberOfChannels;
+    var channels = [];
+    for (var i=0; i<numberOfChannels; ++i) {
+      channels.push(audioBuffer.getChannelData(i));
+    }
+    var view = Encoder.encodeWAV(channels);
+
+    var blob = new Blob ( [ view ], { type : 'audio/wav' } );
+
+    var url = URL.createObjectURL(blob);
+    var hf = document.createElement('a');
+    hf.href = url;
+    hf.download = new Date().toISOString() + '.wav';
+    hf.innerHTML = hf.download;
+
+    //$(hf).appendTo("#wrapper");
+
+    var click = document.createEvent("Event");
+    click.initEvent("click", true, true);
+    hf.dispatchEvent(click);
+  });
+
+  $record.addClass("disabled");
+  $stopRecord.hide();
+  eventuallyMicrophone.then(function(mic) {
+    $record.removeClass("disabled");
+    var record = null;
+    var recordOut = ctx.createGain();
+    recordOut.connect(ctx.destination);
+    $record.click(function() {
+        $stopRecord.show();
+        // tracks management
+        var track = null;
+
+        // get array buffer from stream
+        record = Zampling.createRecorderNode(ctx, function (buffer) {
+          if(!track) {
+            track = createTrackFromAudioBuffer(buffer);
+            player.tracks.add(track);
+          }
+          else {
+            track.append(new audioChunker.ChunkNode(new audioChunker.Chunk(buffer), null));
+          }
+        });
+        record.connect(recordOut);
+        mic.connect(record);
+    });
+    $stopRecord.click(function() {
+      $(this).hide();
+      mic.disconnect(record);
+      record.disconnect(recordOut);
+    });
+  });
+
+
+}());
